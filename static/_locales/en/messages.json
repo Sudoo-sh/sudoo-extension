@@ -1,0 +1,7 @@
+{
+  "name": { "message": "Sudoo.sh", "description": "The extension's name" },
+  "description": {
+    "message": "Your Sudoo.sh panels in the toolbar: projects, instances and their status, quick actions, and branch instances on GitHub.",
+    "description": "Store and extensions page description, 132 characters at most"
+  }
+}

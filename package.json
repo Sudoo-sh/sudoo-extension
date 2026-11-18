@@ -1,0 +1,31 @@
+{
+  "name": "sudoo-extension",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Sudoo.sh browser extension: your panels, projects and instances in the toolbar and on GitHub.",
+  "license": "Apache-2.0",
+  "author": "Yousef M. Y. Al Sabbah",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:dev": "node scripts/build.mjs --dev",
+    "watch": "node scripts/build.mjs --dev --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check . && tsc --noEmit",
+    "format": "biome check --write .",
+    "test": "vitest run",
+    "mock": "node mock/server.mjs",
+    "check": "npm run lint && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.8",
+    "@types/chrome": "0.3.7",
+    "@types/node": "22.20.5",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "vitest": "5.1.1"
+  }
+}

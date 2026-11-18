@@ -1,0 +1,353 @@
+/* The extension's pages: the panel's design tokens (web/src/styles/_tokens.scss of the panel) and its rules:
+   one plum accent on graphite, hairlines instead of boxes, ease-out curves, press scale 0.97, nothing animates on
+   open (the popup opens many times a day), reduced motion respected. */
+
+:root {
+  color-scheme: light;
+  --accent: #714b67;
+  --accent-ink: #5f3d56;
+  --on-accent: #ffffff;
+  --accent-soft: color-mix(in oklab, var(--accent) 9%, var(--surface));
+  --accent-ring: color-mix(in oklab, var(--accent) 30%, transparent);
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --raised: #f4f4f5;
+  --hairline: rgb(23 23 23 / 0.08);
+  --hairline-strong: rgb(23 23 23 / 0.14);
+  --text: #171717;
+  --text-2: #525252;
+  --text-3: #737373;
+  --positive: #16a34a;
+  --negative: #dc2626;
+  --caution: #b45309;
+  --working: #2563eb;
+  --idle: #a3a3a3;
+  --font:
+    "IBM Plex Sans Arabic", -apple-system, BlinkMacSystemFont, "Inter Variable", "Inter", "Segoe UI", system-ui,
+    sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono Variable", Menlo, Consolas, monospace;
+  --radius-tag: 6px;
+  --radius-control: 8px;
+  --radius-card: 14px;
+  --shadow-float: 0 8px 24px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.04);
+  --material: rgb(250 250 250 / 0.72);
+  --material-blur: saturate(180%) blur(20px);
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-move: cubic-bezier(0.77, 0, 0.175, 1);
+  --press: 160ms;
+  --quick: 150ms;
+  --enter: 240ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --accent: #c79bbd;
+    --accent-ink: #d9b6d0;
+    --on-accent: #1b1219;
+    --bg: #141415;
+    --surface: #19191b;
+    --raised: #232325;
+    --hairline: rgb(237 237 237 / 0.08);
+    --hairline-strong: rgb(237 237 237 / 0.14);
+    --text: #ededed;
+    --text-2: #a1a1a6;
+    --text-3: #85858b;
+    --positive: #4cc38a;
+    --negative: #e5484d;
+    --caution: #e0a33d;
+    --working: #6c9ef5;
+    --idle: #6b6b70;
+    --shadow-float: 0 12px 32px rgb(0 0 0 / 0.5);
+    --material: rgb(20 20 21 / 0.72);
+  }
+}
+@media (prefers-contrast: more) {
+  :root {
+    --hairline: rgb(127 127 127 / 0.45);
+    --hairline-strong: rgb(127 127 127 / 0.65);
+    --text-3: var(--text-2);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 13px / 1.45 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+a {
+  color: var(--accent-ink);
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.mono {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.muted {
+  color: var(--text-3);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* controls */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--hairline-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 12.5px;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform var(--press) var(--ease),
+    background-color var(--quick) var(--ease);
+}
+.button:hover {
+  background: var(--raised);
+}
+.button:active,
+.icon-button:active {
+  transform: scale(0.97);
+}
+.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.button.primary:hover {
+  background: color-mix(in oklab, var(--accent) 88%, black);
+}
+.button.danger {
+  color: var(--negative);
+}
+.button[disabled] {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+}
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-control);
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    transform var(--press) var(--ease),
+    background-color var(--quick) var(--ease),
+    color var(--quick) var(--ease);
+}
+.icon-button:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+.icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+.icon-button.confirming {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.icon-button[disabled] {
+  opacity: 0.35;
+  cursor: default;
+}
+[dir="rtl"] .flip svg {
+  transform: scaleX(-1);
+}
+.field {
+  display: grid;
+  gap: 4px;
+}
+.field label {
+  font-weight: 600;
+  font-size: 12.5px;
+}
+.field .hint {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.input {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--hairline-strong);
+  background: var(--surface);
+  width: 100%;
+  transition:
+    border-color var(--quick) var(--ease),
+    box-shadow var(--quick) var(--ease);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+/* status */
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--idle);
+}
+.dot.online {
+  background: var(--positive);
+}
+.dot.working {
+  background: var(--working);
+  animation: breathe 1.6s var(--ease-move) infinite alternate;
+}
+.dot.paused {
+  background: var(--caution);
+}
+@keyframes breathe {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.45;
+  }
+}
+.stage {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  padding: 0 6px;
+  border-radius: var(--radius-tag);
+  border: 1px solid var(--hairline-strong);
+  color: var(--text-2);
+  background: var(--surface);
+}
+.stage.production {
+  color: var(--accent-ink);
+  border-color: var(--accent-ring);
+  background: var(--accent-soft);
+}
+.stage.staging {
+  color: var(--text);
+}
+.progress {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--raised);
+  overflow: hidden;
+}
+.progress > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left;
+  transition: transform 400ms var(--ease);
+}
+[dir="rtl"] .progress > span {
+  transform-origin: right;
+}
+.progress.indeterminate > span {
+  width: 30%;
+  animation: slide 1.2s var(--ease-move) infinite;
+}
+@keyframes slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+[dir="rtl"] .progress.indeterminate > span {
+  animation-name: slide-rtl;
+}
+@keyframes slide-rtl {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(-340%);
+  }
+}
+
+.notice {
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--raised);
+  color: var(--text-2);
+  display: grid;
+  gap: 8px;
+  font-size: 12.5px;
+}
+.notice.error {
+  color: var(--negative);
+}
+
+.toast {
+  position: fixed;
+  inset-inline: 12px;
+  inset-block-end: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--text);
+  color: var(--bg);
+  font-weight: 500;
+  box-shadow: var(--shadow-float);
+  transition:
+    opacity var(--enter) var(--ease),
+    transform var(--enter) var(--ease);
+}
+@starting-style {
+  .toast {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.toast[data-closing] {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation: none !important;
+  }
+}
