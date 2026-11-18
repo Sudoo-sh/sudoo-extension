@@ -308,7 +308,13 @@ function panelSection(view: PanelView): HTMLElement {
     const title = group.project ? group.project.name : w.popup.plain;
     const headLine = h("div", { class: "group-head" }, h("strong", {}, title));
     if (group.project) {
-      headLine.append(h("span", { class: "mono repo", title: group.project.repository.full_name }, group.project.repository.full_name));
+      headLine.append(
+        h(
+          "span",
+          { class: "mono repo", title: group.project.repository.full_name },
+          group.project.repository.full_name,
+        ),
+      );
       headLine.append(
         h(
           "a",

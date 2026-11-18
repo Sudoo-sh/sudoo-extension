@@ -81,8 +81,13 @@ function makeInstance({ name, repo, branch, stage, version, edition, status }) {
   };
 }
 
-
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".json": "application/json" };
+const TYPES = {
+  ".html": "text/html",
+  ".js": "text/javascript",
+  ".css": "text/css",
+  ".png": "image/png",
+  ".json": "application/json",
+};
 
 /** Development only: the built extension under /ext/, and harness.html pages that load dev/shim.js first. */
 function serveFile(dist, req, res) {
@@ -97,7 +102,8 @@ function serveFile(dist, req, res) {
     const file = harness ? join(root, harness[1], `${harness[1]}.html`) : normalize(join(root, path));
     if (!file.startsWith(root)) throw new Error("outside");
     let body = readFileSync(file);
-    if (harness) body = Buffer.from(String(body).replace("<script ", '<script src="../dev-shim.js"></script>\n    <script '));
+    if (harness)
+      body = Buffer.from(String(body).replace("<script ", '<script src="../dev-shim.js"></script>\n    <script '));
     res.writeHead(200, { "Content-Type": TYPES[extname(file)] ?? "application/octet-stream" });
     res.end(body);
   } catch {
