@@ -118,10 +118,14 @@ async function pollPanel(panel: PanelConfig, client: PanelClient, state: PollSta
   if (settings.notifyJobs === "all") {
     const key = `seenJobs:${panel.id}`;
     const seen = await sessionGet<string[] | null>(key, null);
-    const jobs = await client.jobs(30);
-    const finished = jobs.filter((job) => job.status === "success" || job.status === "failed");
-    if (seen) for (const job of finished) if (!seen.includes(job.id)) await announce(job);
-    await chrome.storage.session.set({ [key]: finished.map((job) => job.id).slice(0, 200) });
+    const jobs = await client.jobs(30).catch((error: unknown) => {
+      // an instances token may follow only its own jobs: those are tracked below
+      if (error instanceof ApiError && error.status === 403) return null;
+      throw error;
+    });
+    const finished = (jobs ?? []).filter((job) => job.status === "success" || job.status === "failed");
+    if (seen && jobs) for (const job of finished) if (!seen.includes(job.id)) await announce(job);
+    if (jobs) await chrome.storage.session.set({ [key]: finished.map((job) => job.id).slice(0, 200) });
     for (const job of finished) delete tracked[`${panel.id}|${job.id}`];
   }
   for (const [key, item] of Object.entries(tracked)) {

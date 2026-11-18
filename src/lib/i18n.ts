@@ -88,7 +88,7 @@ const en = {
     panelsText:
       "Connect each panel with an API token and its signing secret, made on the panel's API tokens page. A read token shows everything but changes nothing; an instances token can also start, pause and restart, and create development instances; a write token can do everything an administrator can.",
     label: "Name",
-    labelHint: "How the panel is named here, for example Acme production server",
+    labelHint: "Acme production server",
     origin: "Panel address",
     originHint: "https://panel.example.com",
     token: "API token",
@@ -221,7 +221,7 @@ const ar: Words = {
     panelsText:
       "اربط كل لوحة برمز API وسرّ التوقيع الخاص به، من صفحة رموز API في اللوحة. رمز القراءة يعرض كل شيء ولا يغيّر شيئًا؛ ورمز البيئات يشغّل البيئات ويوقفها مؤقتًا ويعيد تشغيلها وينشئ بيئات تطوير أيضًا؛ ورمز الكتابة يفعل كل ما يفعله المسؤول.",
     label: "الاسم",
-    labelHint: "اسم اللوحة هنا، مثل خادم إنتاج Acme",
+    labelHint: "خادم إنتاج Acme",
     origin: "عنوان اللوحة",
     originHint: "https://panel.example.com",
     token: "رمز API",

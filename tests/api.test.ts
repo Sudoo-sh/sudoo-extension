@@ -116,6 +116,8 @@ describe("addresses", () => {
     expect(normalizeOrigin("panel.example.com")).toBe("https://panel.example.com");
     expect(normalizeOrigin("https://panel.example.com/i/shop?x=1")).toBe("https://panel.example.com");
     expect(normalizeOrigin("http://localhost:8787")).toBe("http://localhost:8787");
+    expect(normalizeOrigin("localhost:8787")).toBe("http://localhost:8787");
+    expect(normalizeOrigin("localhost.example.com")).toBe("https://localhost.example.com");
     expect(normalizeOrigin("http://panel.example.com")).toBeNull();
     expect(normalizeOrigin("https://user:pass@panel.example.com")).toBeNull();
     expect(normalizeOrigin("javascript:alert(1)")).toBeNull();

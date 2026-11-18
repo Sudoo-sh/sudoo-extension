@@ -308,7 +308,7 @@ function panelSection(view: PanelView): HTMLElement {
     const title = group.project ? group.project.name : w.popup.plain;
     const headLine = h("div", { class: "group-head" }, h("strong", {}, title));
     if (group.project) {
-      headLine.append(h("span", { class: "mono" }, group.project.repository.full_name));
+      headLine.append(h("span", { class: "mono repo", title: group.project.repository.full_name }, group.project.repository.full_name));
       headLine.append(
         h(
           "a",
@@ -387,12 +387,12 @@ function instanceRow(view: PanelView, instance: Instance, here: boolean): HTMLEl
       { class: "line" },
       h("span", { class: `dot ${group}`, "aria-hidden": "true" }),
       h("span", { class: "name", title: instance.name }, instance.name),
-      h("span", { class: `stage ${instance.stage}` }, w.stages[instance.stage]),
       tools,
     ),
     h(
       "div",
       { class: "meta" },
+      h("span", { class: `stage ${instance.stage}` }, w.stages[instance.stage]),
       instance.git.branch ? h("span", { class: "mono", title: instance.git.branch }, instance.git.branch) : null,
       instance.git.branch ? h("span", { "aria-hidden": "true" }, "·") : null,
       h("span", {}, w.status[instance.status] ?? instance.status),

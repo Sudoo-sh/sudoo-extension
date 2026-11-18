@@ -121,9 +121,19 @@ main {
 .group-head strong {
   color: var(--text);
   font-weight: 600;
+  white-space: nowrap;
+}
+.group-head .repo {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-3);
 }
 .group-head a {
   margin-inline-start: auto;
+  white-space: nowrap;
+  flex: none;
   font-size: 12px;
   text-decoration: none;
 }
@@ -160,6 +170,7 @@ main {
 }
 .meta {
   display: flex;
+  white-space: nowrap;
   align-items: center;
   gap: 6px;
   color: var(--text-3);
@@ -168,6 +179,7 @@ main {
   padding-inline-start: 14px;
 }
 .meta .mono {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

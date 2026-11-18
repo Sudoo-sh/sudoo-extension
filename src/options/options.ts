@@ -141,7 +141,7 @@ function panelForm(existing: PanelConfig | null): HTMLElement {
   const origin = input({
     placeholder: w.options.originHint,
     value: existing?.origin ?? "",
-    type: "url",
+    type: "text",
     inputmode: "url",
   });
   const token = input({ type: "password", placeholder: "sudoo_…" });

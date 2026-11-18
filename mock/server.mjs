@@ -8,7 +8,9 @@
 // The token and signing secret below are test values of this mock only: they open nothing else.
 
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
+import { extname, join, normalize, resolve } from "node:path";
 
 export const MOCK_TOKEN = "sudoo_mock_0123456789abcdef";
 export const MOCK_SECRET = "mock-signing-secret-for-local-tests";
@@ -79,7 +81,38 @@ function makeInstance({ name, repo, branch, stage, version, edition, status }) {
   };
 }
 
-export function createMockPanel({ token = MOCK_TOKEN, secret = MOCK_SECRET, scope = "write", jobMs = JOB_MS } = {}) {
+
+const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".json": "application/json" };
+
+/** Development only: the built extension under /ext/, and harness.html pages that load dev/shim.js first. */
+function serveFile(dist, req, res) {
+  const path = new URL(req.url, "http://mock").pathname.slice("/ext/".length);
+  const root = resolve(dist);
+  try {
+    if (path === "dev-shim.js") {
+      res.writeHead(200, { "Content-Type": TYPES[".js"] });
+      return res.end(readFileSync(resolve(root, "../../dev/shim.js")));
+    }
+    const harness = /^(popup|options)\/harness\.html$/.exec(path);
+    const file = harness ? join(root, harness[1], `${harness[1]}.html`) : normalize(join(root, path));
+    if (!file.startsWith(root)) throw new Error("outside");
+    let body = readFileSync(file);
+    if (harness) body = Buffer.from(String(body).replace("<script ", '<script src="../dev-shim.js"></script>\n    <script '));
+    res.writeHead(200, { "Content-Type": TYPES[extname(file)] ?? "application/octet-stream" });
+    res.end(body);
+  } catch {
+    res.writeHead(404);
+    res.end();
+  }
+}
+
+export function createMockPanel({
+  token = MOCK_TOKEN,
+  secret = MOCK_SECRET,
+  scope = "write",
+  jobMs = JOB_MS,
+  serve = null,
+} = {}) {
   const instances = seed();
   const jobs = new Map();
   const nonces = new Map();
@@ -262,6 +295,7 @@ export function createMockPanel({ token = MOCK_TOKEN, secret = MOCK_SECRET, scop
       }
     }
     if (method === "GET" && path === "/jobs") {
+      if (scope === "instances") return forbid("list jobs");
       const list = [...jobs.values()]
         .reverse()
         .slice(0, Number(url.searchParams.get("limit") ?? 30))
@@ -325,6 +359,7 @@ export function createMockPanel({ token = MOCK_TOKEN, secret = MOCK_SECRET, scop
   }
 
   const server = createServer((req, res) => {
+    if (serve && req.method === "GET" && req.url.startsWith("/ext/")) return serveFile(serve, req, res);
     const chunks = [];
     req.on("data", (chunk) => chunks.push(chunk));
     req.on("end", () => {
@@ -385,9 +420,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   };
   const port = Number(arg("port", 8787));
   const scope = arg("scope", "write");
-  createMockPanel({ scope }).server.listen(port, "127.0.0.1", () => {
+  const serve = process.argv.includes("--serve") ? resolve("dist/chrome") : null;
+  createMockPanel({ scope, serve }).server.listen(port, "127.0.0.1", () => {
     console.log(`Mock Sudoo.sh panel (scope ${scope}) on http://localhost:${port}`);
     console.log(`API token:      ${MOCK_TOKEN}`);
     console.log(`Signing secret: ${MOCK_SECRET}`);
+    if (serve) console.log(`Popup preview:  http://localhost:${port}/ext/popup/harness.html (?lang=ar, ?tab=<url>)`);
   });
 }

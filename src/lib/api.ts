@@ -49,7 +49,10 @@ export function normalizeOrigin(input: string): string | null {
   if (!text) return null;
   let url: URL;
   try {
-    url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `https://${text}`);
+    const bare = !/^[a-z][a-z0-9+.-]*:\/\//i.test(text);
+    // a bare address is https, except this computer's own (a local panel or the mock)
+    const scheme = bare && /^(localhost|127\.0\.0\.1|[\w-]+\.localhost)(:\d+)?(\/|$)/i.test(text) ? "http" : "https";
+    url = new URL(bare ? `${scheme}://${text}` : text);
   } catch {
     return null;
   }

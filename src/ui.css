@@ -351,3 +351,9 @@ a {
     animation: none !important;
   }
 }
+
+/* addresses, branches and repository names read left to right in Arabic too */
+.mono {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
