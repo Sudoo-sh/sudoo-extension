@@ -148,6 +148,12 @@ The design follows the panel's tokens (`web/src/styles/_tokens.scss` of the pane
 hairlines, ease-out curves, a 0.97 press, nothing animated when the popup opens (it opens many times a day), reduced
 motion respected.
 
+### Formatting
+
+Code is formatted and linted with Biome (settings in `biome.json`), and `tsc` checks the types. `npm run format` rewrites
+files and `npm run lint` checks them without changes; `npm run check` runs the lint, the tests and the build. The same
+checks run on every commit with pre-commit (run `pre-commit install` once).
+
 ## 7. Licence
 
 Apache License 2.0 ([LICENSE](LICENSE)), like the Sudoo.sh plugin SDK: a client tool you may read, change and

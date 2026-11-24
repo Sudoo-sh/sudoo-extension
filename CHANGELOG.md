@@ -4,6 +4,11 @@ All notable changes to the Sudoo.sh browser extension. The version follows the S
 
 ## Unreleased
 
+### Changed
+
+- **Formatting and lint setup:** an `.editorconfig` and a pre-commit configuration (Biome and `tsc`). Biome was
+  already clean, so no file was reformatted. No behaviour change.
+
 ## 3.0.0 - 2026-11-18
 
 First release.
