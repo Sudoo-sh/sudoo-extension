@@ -1,14 +1,22 @@
+/** Tests of how the GitHub page box is built from the panel's data (src/lib/github.ts). */
+
 import { describe, expect, it } from "vitest";
 import { buildMatch, versionFor } from "../src/lib/github";
 import type { Instance, Project, ProjectDetail } from "../src/lib/types";
 
+/** A panel as the extension stores it: id, label and origin. */
 const panel = { id: "p1", label: "Acme server", origin: "https://panel.example.com" };
+/** A project with its repository and Odoo version. */
 const project: Project = {
   id: "erp",
   name: "ERP",
   repository: { full_name: "acme/erp", url: "https://github.com/acme/erp" },
   odoo: { version: "19.0", edition: "enterprise" },
 };
+/**
+ * A project's detail with three branches (main with an instance, one without, one deleted on GitHub) and the default
+ * branch.
+ */
 const detail: { project: ProjectDetail; defaultBranch: string } = {
   project: {
     ...project,
@@ -20,6 +28,7 @@ const detail: { project: ProjectDetail; defaultBranch: string } = {
   },
   defaultBranch: "main",
 };
+/** The production instance of the main branch. */
 const main: Instance = {
   name: "erp-main",
   status: "online",
@@ -31,6 +40,7 @@ const main: Instance = {
   current_job: null,
 };
 
+/** Test group for buildMatch and versionFor. */
 describe("the GitHub box", () => {
   it("shows the branch's instance on a tree page", () => {
     const match = buildMatch(

@@ -1,8 +1,17 @@
+/**
+ * Tests of the panel client against the mock panel (mock/server.mjs), started on a free local port, and of address
+ * handling.
+ */
+
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createMockPanel, MOCK_SECRET, MOCK_TOKEN } from "../mock/server.mjs";
 import { ApiError, encodeBranch, normalizeOrigin, PanelClient, UnreachableError } from "../src/lib/api";
 
+/**
+ * Starts a mock panel with the given scope (default "write") and short jobs on a free local port. Resolves with its
+ * origin and a function that stops it.
+ */
 function start(scope = "write") {
   const mock = createMockPanel({ scope, jobMs: 300 });
   return new Promise<{ origin: string; close: () => void }>((resolve) => {
@@ -13,19 +22,25 @@ function start(scope = "write") {
   });
 }
 
+/** The mock panel's token and secret. */
 const credentials = { token: MOCK_TOKEN, secret: MOCK_SECRET };
+/** Mock panel with the "write" scope, started before the tests. */
 let panel: { origin: string; close: () => void };
+/** Mock panel whose token has the "instances" scope only. */
 let limited: { origin: string; close: () => void };
 
+/** Starts both mock panels. */
 beforeAll(async () => {
   panel = await start();
   limited = await start("instances");
 });
+/** Stops both mock panels. */
 afterAll(() => {
   panel.close();
   limited.close();
 });
 
+/** Test group for the panel client. */
 describe("PanelClient against the mock panel", () => {
   it("lists instances and projects through signed requests", async () => {
     const client = new PanelClient(panel.origin, credentials);
@@ -111,6 +126,7 @@ describe("PanelClient against the mock panel", () => {
   });
 });
 
+/** Test group for address normalization and branch encoding. */
 describe("addresses", () => {
   it("normalizes panel addresses and refuses unsafe ones", () => {
     expect(normalizeOrigin("panel.example.com")).toBe("https://panel.example.com");

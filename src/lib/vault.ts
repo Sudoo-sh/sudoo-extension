@@ -6,33 +6,57 @@
  * disk (chrome.storage.local); the passphrase never is. Pure functions over Web Crypto, so Node tests run them too.
  */
 
+/** Turns text into bytes. */
 const encoder = new TextEncoder();
+/** Turns bytes into text. */
 const decoder = new TextDecoder();
 
+/** How many PBKDF2 iterations new vaults use. */
 export const PBKDF2_ITERATIONS = 600_000;
+/** The shortest passphrase accepted, in characters. */
 export const MIN_PASSPHRASE = 10;
 
+/** A sealed value. */
 export interface Sealed {
+  /** The random IV, as base64. */
   iv: string;
+  /** The cipher text, as base64. */
   ct: string;
 }
 
+/** The data stored next to the sealed values, needed to unlock them again. */
 export interface VaultHeader {
+  /** The format version. */
   v: 1;
+  /** The random PBKDF2 salt, as base64. */
   salt: string;
+  /** The PBKDF2 iteration count the key was derived with. */
   iterations: number;
   /** a known text sealed with the key: tells a wrong passphrase from damaged data */
   check: Sealed;
 }
 
+/** The known text that is sealed into `VaultHeader.check`. */
 const CHECK_TEXT = "sudoo-extension-vault-v1";
 
+/**
+ * Encode bytes as base64.
+ *
+ * @param bytes - The bytes.
+ * @returns The base64 text.
+ */
 export function toBase64(bytes: Uint8Array): string {
   let text = "";
   for (const b of bytes) text += String.fromCharCode(b);
   return btoa(text);
 }
 
+/**
+ * Decode base64 text.
+ *
+ * @param text - The base64 text.
+ * @returns The bytes.
+ */
 export function fromBase64(text: string): Uint8Array<ArrayBuffer> {
   const raw = atob(text);
   const bytes = new Uint8Array(new ArrayBuffer(raw.length));
@@ -40,6 +64,14 @@ export function fromBase64(text: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
+/**
+ * Derive an AES-GCM key from a passphrase.
+ *
+ * @param passphrase - The passphrase.
+ * @param salt - The PBKDF2 salt.
+ * @param iterations - The PBKDF2 iteration count.
+ * @returns The key, which can be exported.
+ */
 export async function deriveKey(
   passphrase: string,
   salt: Uint8Array<ArrayBuffer>,
@@ -55,14 +87,33 @@ export async function deriveKey(
   );
 }
 
+/**
+ * Export a key as base64.
+ *
+ * @param key - The key.
+ * @returns The raw key as base64.
+ */
 export async function exportKey(key: CryptoKey): Promise<string> {
   return toBase64(new Uint8Array(await crypto.subtle.exportKey("raw", key)));
 }
 
+/**
+ * Import a key exported with `exportKey`.
+ *
+ * @param raw - The raw key as base64.
+ * @returns The key.
+ */
 export async function importKey(raw: string): Promise<CryptoKey> {
   return crypto.subtle.importKey("raw", fromBase64(raw), { name: "AES-GCM" }, true, ["encrypt", "decrypt"]);
 }
 
+/**
+ * Encrypt text with AES-GCM and a new random IV.
+ *
+ * @param key - The key.
+ * @param text - The text.
+ * @returns The IV and the cipher text.
+ */
 export async function seal(key: CryptoKey, text: string): Promise<Sealed> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoder.encode(text));
@@ -75,6 +126,13 @@ export async function open(key: CryptoKey, sealed: Sealed): Promise<string> {
   return decoder.decode(plain);
 }
 
+/**
+ * Make a new vault header and key from a passphrase.
+ *
+ * @param passphrase - The passphrase; at least `MIN_PASSPHRASE` characters.
+ * @param iterations - The PBKDF2 iteration count.
+ * @returns The header to store and the key.
+ */
 export async function createVault(
   passphrase: string,
   iterations = PBKDF2_ITERATIONS,

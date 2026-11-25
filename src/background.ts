@@ -19,12 +19,16 @@ import type {
 } from "./lib/messages";
 import { getPanels, getSettings, type PanelConfig } from "./lib/store";
 
+/** The match pattern of GitHub pages. */
 const GITHUB = "https://github.com/*";
+/** The id of the registered GitHub content script. */
 const SCRIPT_ID = "sudoo-github";
+/** The name of the alarm that starts polling. */
 const POLL_ALARM = "sudoo-poll";
 
 // ---- the GitHub content script ----------------------------------------------------------------------------
 
+/** Register the GitHub content script when the setting is on and github.com access is granted; remove it otherwise. */
 async function syncGitHubScript(): Promise<void> {
   const settings = await getSettings();
   const granted = await chrome.permissions.contains({ origins: [GITHUB] }).catch(() => false);
@@ -48,6 +52,7 @@ async function syncGitHubScript(): Promise<void> {
 
 // ---- notifications -----------------------------------------------------------------------------------------
 
+/** Create the polling alarm (every minute) when notifications are on; clear it otherwise. */
 async function syncAlarm(): Promise<void> {
   const settings = await getSettings();
   if (settings.notifications) {
@@ -57,29 +62,58 @@ async function syncAlarm(): Promise<void> {
   }
 }
 
+/** A job started from the extension, followed until it ends. */
 interface Tracked {
+  /** The panel's id. */
   panelId: string;
+  /** The job's id. */
   jobId: string;
+  /** The action's name. */
   action: string;
+  /** The instance's name, or null. */
   instance: string | null;
 }
 
+/** How polling one panel is going. */
 interface PollState {
+  /** How many polls failed in a row. */
   failures: number;
+  /** The earliest time of the next poll, in milliseconds since 1970. */
   nextAt: number;
+  /** Set when the token may not read alerts, so they are not asked for again. */
   alertsForbidden?: boolean;
 }
 
+/**
+ * Read a value from the storage in memory.
+ *
+ * @param key - The key.
+ * @param fallback - The value when nothing is stored.
+ * @returns The stored value, or the fallback.
+ */
 async function sessionGet<T>(key: string, fallback: T): Promise<T> {
   return ((await chrome.storage.session.get(key))[key] as T | undefined) ?? fallback;
 }
 
+/**
+ * Remember a job to follow.
+ *
+ * @param job - The job.
+ */
 async function track(job: Tracked): Promise<void> {
   const tracked = await sessionGet<Record<string, Tracked>>("tracked", {});
   tracked[`${job.panelId}|${job.jobId}`] = job;
   await chrome.storage.session.set({ tracked });
 }
 
+/**
+ * Show a notification and remember the address to open when it is clicked.
+ *
+ * @param id - The notification's id.
+ * @param title - The title.
+ * @param message - The text; cut to 300 characters.
+ * @param url - The address to open on click, or null.
+ */
 async function notify(id: string, title: string, message: string, url: string | null): Promise<void> {
   if (!chrome.notifications) return; // the optional permission was not granted
   const links = await sessionGet<Record<string, string>>("notificationLinks", {});
@@ -93,6 +127,13 @@ async function notify(id: string, title: string, message: string, url: string | 
   });
 }
 
+/**
+ * Check one panel for finished jobs and new alerts, and notify about them.
+ *
+ * @param panel - The saved panel.
+ * @param client - The API client.
+ * @param state - The panel's polling state; updated when alerts are not allowed.
+ */
 async function pollPanel(panel: PanelConfig, client: PanelClient, state: PollState): Promise<void> {
   const settings = await getSettings();
   const words = wordsFor(pickLocale(settings.locale, chrome.i18n.getUILanguage()));
@@ -196,6 +237,12 @@ async function pollAll(): Promise<void> {
 
 // ---- the GitHub box ------------------------------------------------------------------------------------------
 
+/**
+ * Answer the GitHub box: collect what each connected panel knows about the page.
+ *
+ * @param request - The lookup request.
+ * @returns The matches and the language. A panel that cannot be read is left out.
+ */
 async function lookup(request: Extract<GitHubRequest, { type: "github:lookup" }>): Promise<GitHubLookupAnswer> {
   const settings = await getSettings();
   const matches: GitHubMatch[] = [];
@@ -215,6 +262,15 @@ async function lookup(request: Extract<GitHubRequest, { type: "github:lookup" }>
   return { ok: true, matches, locale: pickLocale(settings.locale, chrome.i18n.getUILanguage()) };
 }
 
+/**
+ * Create a development instance for a branch and follow its job.
+ *
+ * The project route is tried first; when the token may not use projects, the plain route with the repository and branch
+ * is used.
+ *
+ * @param request - The create request.
+ * @returns The job's id and instance, or an error text.
+ */
 async function create(request: Extract<GitHubRequest, { type: "github:create" }>): Promise<GitHubCreateAnswer> {
   const panel = (await getPanels()).find((p) => p.id === request.panelId);
   const client = panel ? await clientFor(panel) : null;
@@ -243,6 +299,12 @@ async function create(request: Extract<GitHubRequest, { type: "github:create" }>
   }
 }
 
+/**
+ * Read the state of a job for the GitHub box.
+ *
+ * @param request - The job request.
+ * @returns The job's state, progress and error, or a failure.
+ */
 async function jobStatus(request: Extract<GitHubRequest, { type: "github:job" }>): Promise<GitHubJobAnswer> {
   const panel = (await getPanels()).find((p) => p.id === request.panelId);
   const client = panel ? await clientFor(panel) : null;
@@ -259,8 +321,20 @@ async function jobStatus(request: Extract<GitHubRequest, { type: "github:job" }>
 
 // ---- wiring --------------------------------------------------------------------------------------------------
 
+/**
+ * Tell whether a message came from this extension's content script on github.com.
+ *
+ * @param sender - The sender.
+ * @returns True when it did.
+ */
 const fromGitHub = (sender: chrome.runtime.MessageSender) =>
   sender.id === chrome.runtime.id && sender.tab !== undefined && (sender.url ?? "").startsWith("https://github.com/");
+/**
+ * Tell whether a message came from one of this extension's own pages.
+ *
+ * @param sender - The sender.
+ * @returns True when it did.
+ */
 const fromExtensionPage = (sender: chrome.runtime.MessageSender) =>
   sender.id === chrome.runtime.id && (sender.url ?? "").startsWith(chrome.runtime.getURL(""));
 

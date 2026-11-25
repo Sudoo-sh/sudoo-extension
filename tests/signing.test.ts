@@ -1,7 +1,13 @@
+/**
+ * Tests of request signing against an independent implementation of the panel API's signing rules, written with Node's
+ * crypto.
+ */
+
 import { createHash, createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { canonicalText, makeNonce, sha256Hex, signedHeaders } from "../src/lib/signing";
 
+/** Fixed test token and secret. */
 const credentials = { token: "sudoo_test", secret: "test-secret" };
 
 /** An independent implementation of PANEL_API.md section 2, with Node's crypto. */
@@ -9,6 +15,7 @@ function expected(lines: string[]): string {
   return `sha256=${createHmac("sha256", credentials.secret).update(lines.join("\n")).digest("hex")}`;
 }
 
+/** Test group for src/lib/signing.ts. */
 describe("signing", () => {
   it("hashes an empty body as the documentation shows", async () => {
     expect(await sha256Hex("")).toBe("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");

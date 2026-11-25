@@ -6,6 +6,9 @@ All notable changes to the Sudoo.sh browser extension. The version follows the S
 
 ### Changed
 
+- **Documentation in the code:** a header comment in every source file and TSDoc on every function, class, type and
+  interface field, in the source, tests, build scripts and mock panel. Comments only: the built extension is
+  byte-identical. No behaviour change.
 - **Formatting and lint setup:** an `.editorconfig` and a pre-commit configuration (Biome and `tsc`). Biome was
   already clean, so no file was reformatted. No behaviour change.
 

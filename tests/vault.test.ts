@@ -1,6 +1,12 @@
+/**
+ * Tests of the passphrase vault: sealing and opening, a wrong passphrase, new IVs, key export and import, and the
+ * passphrase rules.
+ */
+
 import { describe, expect, it } from "vitest";
 import { createVault, exportKey, importKey, open, seal, unlockVault } from "../src/lib/vault";
 
+/** Test group for src/lib/vault.ts. */
 describe("the passphrase vault", () => {
   it("seals and opens, and tells a wrong passphrase", async () => {
     const { header, key } = await createVault("correct horse battery", 1000);

@@ -6,13 +6,25 @@ import { findProject, instancesOfRepo, parseHeadRef, resolveBranch } from "./mat
 import type { GitHubMatch, InstanceSummary } from "./messages";
 import type { Instance, Project, ProjectDetail } from "./types";
 
+/** What the content script learned from the GitHub page. */
 export interface PageInfo {
+  /** The repository's full name ("owner/name"). */
   repo: string;
+  /** The kind of page. */
   kind: GitHubPageKind;
+  /** The branch, tag or commit in the address, or null. */
   ref: string | null;
+  /** The head of a pull request as "owner:branch", or null. */
   head: string | null;
 }
 
+/**
+ * Reduce an instance to what the GitHub box shows.
+ *
+ * @param origin - The panel's origin.
+ * @param instance - The instance.
+ * @returns The summary.
+ */
 export function summarize(origin: string, instance: Instance): InstanceSummary {
   const job = instance.current_job;
   return {
@@ -25,10 +37,30 @@ export function summarize(origin: string, instance: Instance): InstanceSummary {
   };
 }
 
+/**
+ * Find the project of a repository.
+ *
+ * @param projects - The projects, or null when they could not be read.
+ * @param repo - The repository's full name.
+ * @returns The project, or null.
+ */
 export function projectFor(projects: readonly Project[] | null, repo: string): Project | null {
   return projects ? findProject(projects, repo) : null;
 }
 
+/**
+ * Work out what to show for one panel on a GitHub page.
+ *
+ * The branch comes from the pull request's head, from the address, or from the default branch. A pull request from a
+ * fork shows no instances.
+ *
+ * @param panel - The saved panel's id, label and origin.
+ * @param page - The GitHub page.
+ * @param instances - The panel's instances.
+ * @param project - The project of the repository, or null.
+ * @param detail - The project's branches and default branch, or null.
+ * @returns The match, or null when the panel knows nothing about the repository.
+ */
 export function buildMatch(
   panel: { id: string; label: string; origin: string },
   page: PageInfo,

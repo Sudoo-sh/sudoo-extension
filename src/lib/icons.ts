@@ -1,9 +1,16 @@
 /** Line icons drawn for the extension (24-unit grid, 1.75 stroke), as constant SVG markup. Only these constants are
  *  ever parsed as markup; everything that comes from a panel is set as text. */
 
+/**
+ * Wrap the paths of an icon in an svg element.
+ *
+ * @param body - The svg markup of the icon's shapes.
+ * @returns The complete svg markup.
+ */
 const svg = (body: string) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 
+/** The icons by name, as constant svg markup. */
 export const ICONS = {
   search: svg('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
   settings: svg(
@@ -23,4 +30,5 @@ export const ICONS = {
   logs: svg('<path d="M5 6h14"/><path d="M5 10h14"/><path d="M5 14h10"/><path d="M5 18h7"/>'),
 };
 
+/** The name of an icon in `ICONS`. */
 export type IconName = keyof typeof ICONS;

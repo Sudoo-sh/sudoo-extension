@@ -10,26 +10,38 @@
 import type { Credentials } from "./api";
 import { createVault, exportKey, importKey, open, type Sealed, seal, unlockVault, type VaultHeader } from "./vault";
 
+/** A saved panel. No secret is part of it. */
 export interface PanelConfig {
+  /** The panel's id in this extension. */
   id: string;
+  /** The name shown to the person. */
   label: string;
+  /** The panel's origin. */
   origin: string;
+  /** When it was added, in milliseconds since 1970. */
   addedAt: number;
 }
 
+/** Where secrets are kept: in memory for the browser session only, or sealed on disk with a passphrase. */
 export type SecretMode = "session" | "passphrase";
 
+/** The person's settings. */
 export interface Settings {
+  /** The language: "auto" follows the browser. */
   locale: "auto" | "en" | "ar";
+  /** Where secrets are kept. */
   secretMode: SecretMode;
   /** notifications are off until the person turns them on (and grants the permission) */
   notifications: boolean;
+  /** Which finished jobs cause a notification: the person's own or all. */
   notifyJobs: "mine" | "all";
+  /** Whether alerts cause a notification. */
   notifyAlerts: boolean;
   /** the box on GitHub pages; needs the optional github.com permission */
   github: boolean;
 }
 
+/** The settings before the person changes anything. */
 export const DEFAULT_SETTINGS: Settings = {
   locale: "auto",
   secretMode: "session",
@@ -39,21 +51,44 @@ export const DEFAULT_SETTINGS: Settings = {
   github: false,
 };
 
+/** The extension's storage on disk. */
 const local = () => chrome.storage.local;
+/** The extension's storage in memory. */
 const session = () => chrome.storage.session;
 
+/**
+ * Read one value from a storage area.
+ *
+ * @param area - The storage area.
+ * @param key - The key.
+ * @param fallback - The value when nothing is stored.
+ * @returns The stored value, or the fallback.
+ */
 async function read<T>(area: chrome.storage.StorageArea, key: string, fallback: T): Promise<T> {
   const items = await area.get(key);
   return (items[key] as T | undefined) ?? fallback;
 }
 
+/** Read the saved panels. */
 export const getPanels = () => read<PanelConfig[]>(local(), "panels", []);
+/** Replace the saved panels. */
 export const savePanels = (panels: PanelConfig[]) => local().set({ panels });
 
+/**
+ * Read the settings, with the defaults for anything not stored.
+ *
+ * @returns The settings.
+ */
 export async function getSettings(): Promise<Settings> {
   return { ...DEFAULT_SETTINGS, ...(await read<Partial<Settings>>(local(), "settings", {})) };
 }
 
+/**
+ * Change some settings.
+ *
+ * @param change - The settings to change.
+ * @returns All settings after the change.
+ */
 export async function saveSettings(change: Partial<Settings>): Promise<Settings> {
   const next = { ...(await getSettings()), ...change };
   await local().set({ settings: next });
@@ -62,20 +97,38 @@ export async function saveSettings(change: Partial<Settings>): Promise<Settings>
 
 // ---- secrets -------------------------------------------------------------------------------------------------
 
+/** Read the credentials in memory, by panel id. */
 const getSessionSecrets = () => read<Record<string, Credentials>>(session(), "secrets", {});
+/** Read the sealed credentials on disk, by panel id. */
 const getSealed = () => read<Record<string, Sealed>>(local(), "sealed", {});
+/** Read the vault header from disk. */
 const getHeader = () => read<VaultHeader | null>(local(), "vault", null);
 
+/**
+ * Read the credentials of a panel from memory.
+ *
+ * @param panelId - The panel's id.
+ * @returns The credentials, or null when they are not available in this browser session.
+ */
 export async function getCredentials(panelId: string): Promise<Credentials | null> {
   return (await getSessionSecrets())[panelId] ?? null;
 }
 
+/**
+ * Read the vault key from memory.
+ *
+ * @returns The key, or null while the vault is locked or not in use.
+ */
 async function vaultKey(): Promise<CryptoKey | null> {
   const raw = await read<string | null>(session(), "vaultKey", null);
   return raw ? importKey(raw) : null;
 }
 
+/**
+ * What the popup needs to know about locked secrets: the mode in use and which panels have no token available right now.
+ */
 export interface LockState {
+  /** The secret mode in use. */
   mode: SecretMode;
   /** passphrase mode, and the passphrase was not entered since the browser started */
   locked: boolean;
@@ -83,6 +136,11 @@ export interface LockState {
   missing: string[];
 }
 
+/**
+ * Tell whether secrets are available.
+ *
+ * @returns The mode, whether the vault is locked and the panels without credentials in memory.
+ */
 export async function lockState(): Promise<LockState> {
   const [settings, panels, secrets, sealed, key] = await Promise.all([
     getSettings(),
@@ -95,6 +153,13 @@ export async function lockState(): Promise<LockState> {
   return { mode: settings.secretMode, locked, missing: panels.filter((p) => !secrets[p.id]).map((p) => p.id) };
 }
 
+/**
+ * Keep the credentials of a panel in memory, and sealed on disk in passphrase mode.
+ *
+ * @param panelId - The panel's id.
+ * @param credentials - The token and secret.
+ * @throws Error "locked" in passphrase mode while the vault is locked.
+ */
 export async function setCredentials(panelId: string, credentials: Credentials): Promise<void> {
   const secrets = await getSessionSecrets();
   secrets[panelId] = credentials;
@@ -151,6 +216,11 @@ export async function lockNow(): Promise<void> {
   await session().remove(["vaultKey", "secrets"]);
 }
 
+/**
+ * Forget a panel with its credentials, sealed copy and caches.
+ *
+ * @param panelId - The panel's id.
+ */
 export async function removePanel(panelId: string): Promise<void> {
   await savePanels((await getPanels()).filter((p) => p.id !== panelId));
   const secrets = await getSessionSecrets();
@@ -165,13 +235,27 @@ export async function removePanel(panelId: string): Promise<void> {
 
 // ---- caches (memory only) -------------------------------------------------------------------------------------
 
+/**
+ * Read a cached value from memory.
+ *
+ * @param key - The cache key.
+ * @param maxAgeMs - The oldest the value may be, in milliseconds.
+ * @returns The value, or null when there is none or it is too old.
+ */
 export async function getCache<T>(key: string, maxAgeMs: number): Promise<T | null> {
   const entry = await read<{ at: number; value: T } | null>(session(), `cache:${key}`, null);
   return entry && Date.now() - entry.at < maxAgeMs ? entry.value : null;
 }
 
+/**
+ * Keep a value in the cache in memory, with the current time.
+ *
+ * @param key - The cache key.
+ * @param value - The value.
+ */
 export async function setCache<T>(key: string, value: T): Promise<void> {
   await session().set({ [`cache:${key}`]: { at: Date.now(), value } });
 }
 
+/** Make a random id. */
 export const newId = (): string => crypto.randomUUID();

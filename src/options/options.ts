@@ -23,20 +23,44 @@ import {
 } from "../lib/store";
 import { MIN_PASSPHRASE } from "../lib/vault";
 
+/** The match pattern of GitHub pages. */
 const GITHUB = "https://github.com/*";
+/** The element the page draws into. */
 const main = document.querySelector("main") as HTMLElement;
+/** The dictionary of the chosen language. */
 let w: Words;
+/** The id of the panel whose token is being replaced, or null. */
 let editing: string | null = null; // the panel whose token is being replaced
 
+/**
+ * Tell the service worker that settings changed.
+ *
+ * @returns A promise that settles when the worker answered or failed.
+ */
 const notifyWorker = () => {
   const message: PageRequest = { type: "settings-changed" };
   return chrome.runtime.sendMessage(message).catch(() => undefined);
 };
 
+/**
+ * Make a message line.
+ *
+ * @param text - The text.
+ * @param kind - "ok" for a status message, "error" for an alert.
+ * @returns The line.
+ */
 function message(text: string, kind: "ok" | "error" = "ok"): HTMLElement {
   return h("p", { class: `message ${kind}`, role: kind === "error" ? "alert" : "status" }, text);
 }
 
+/**
+ * Make a labelled input with an optional hint.
+ *
+ * @param label - The label text.
+ * @param input - The input.
+ * @param hint - A hint under the input.
+ * @returns The field.
+ */
 function field(label: string, input: HTMLInputElement, hint?: string): HTMLElement {
   const id = `f-${Math.random().toString(36).slice(2)}`;
   input.id = id;
@@ -49,9 +73,16 @@ function field(label: string, input: HTMLInputElement, hint?: string): HTMLEleme
   );
 }
 
+/**
+ * Make a text input with the page's style.
+ *
+ * @param attrs - The attributes.
+ * @returns The input.
+ */
 const input = (attrs: Record<string, string>) =>
   h("input", { class: "input", spellcheck: "false", autocomplete: "off", ...attrs });
 
+/** Draw the whole settings page from the stored settings. */
 async function render(): Promise<void> {
   const settings = await getSettings();
   w = applyLocale(document, pickLocale(settings.locale, chrome.i18n.getUILanguage()));
@@ -70,6 +101,14 @@ async function render(): Promise<void> {
 
 // ---- panels ---------------------------------------------------------------------------------------------------
 
+/**
+ * Make the section that lists the connected panels and the form to add one.
+ *
+ * @param panels - The saved panels.
+ * @param missing - The ids of panels whose token is not available in this browser session.
+ * @param locked - Whether saved tokens are locked.
+ * @returns The section.
+ */
 async function panelsSection(panels: PanelConfig[], missing: string[], locked: boolean): Promise<HTMLElement> {
   const card = h("div", { class: "card" });
   if (!panels.length) card.append(h("p", { class: "muted" }, w.options.noPanels));
@@ -136,6 +175,12 @@ async function panelsSection(panels: PanelConfig[], missing: string[], locked: b
   return h("section", {}, h("h2", {}, w.options.panels), h("p", {}, w.options.panelsText), card);
 }
 
+/**
+ * Make the form that connects a panel or replaces its token.
+ *
+ * @param existing - The panel whose token is replaced, or null to add a new one.
+ * @returns The form.
+ */
 function panelForm(existing: PanelConfig | null): HTMLElement {
   const label = input({ placeholder: w.options.labelHint, value: existing?.label ?? "" });
   const origin = input({
@@ -231,6 +276,13 @@ function panelForm(existing: PanelConfig | null): HTMLElement {
 
 // ---- where tokens are kept --------------------------------------------------------------------------------
 
+/**
+ * Make the section where the person chooses where tokens are kept.
+ *
+ * @param settings - The settings.
+ * @param locked - Whether saved tokens are locked.
+ * @returns The section.
+ */
 function secretsSection(settings: Settings, locked: boolean): HTMLElement {
   const card = h("div", { class: "card" });
   const status = h("div");
@@ -337,6 +389,12 @@ function secretsSection(settings: Settings, locked: boolean): HTMLElement {
 
 // ---- language, GitHub, notifications ------------------------------------------------------------------------
 
+/**
+ * Make the language choice.
+ *
+ * @param settings - The settings.
+ * @returns The section.
+ */
 function languageSection(settings: Settings): HTMLElement {
   const select = h(
     "select",
@@ -355,12 +413,26 @@ function languageSection(settings: Settings): HTMLElement {
   return h("section", {}, h("h2", {}, w.options.language), select);
 }
 
+/**
+ * Make a labelled checkbox.
+ *
+ * @param label - The label text.
+ * @param checked - Whether it starts checked.
+ * @param onchange - Called with the new state and the checkbox when it changes.
+ * @returns The label element.
+ */
 function toggle(label: string, checked: boolean, onchange: (on: boolean, box: HTMLInputElement) => void): HTMLElement {
   const box = h("input", { type: "checkbox", checked });
   box.addEventListener("change", () => onchange(box.checked, box));
   return h("label", { class: "choice" }, box, h("span", {}, label));
 }
 
+/**
+ * Make the section for the GitHub box.
+ *
+ * @param settings - The settings.
+ * @returns The section.
+ */
 function githubSection(settings: Settings): HTMLElement {
   return h(
     "section",
@@ -389,6 +461,12 @@ function githubSection(settings: Settings): HTMLElement {
   );
 }
 
+/**
+ * Make the section for notifications.
+ *
+ * @param settings - The settings.
+ * @returns The section.
+ */
 function notificationsSection(settings: Settings): HTMLElement {
   const radio = (value: Settings["notifyJobs"], label: string) =>
     h(
