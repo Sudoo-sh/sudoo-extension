@@ -6,19 +6,35 @@
 import { signedHeaders } from "./signing";
 import type { Alert, Envelope, Instance, Job, Problem, Project, ProjectDetail, QuickAction } from "./types";
 
+/** The credentials of one panel. */
 export interface Credentials {
+  /** The API token. */
   token: string;
+  /** The signing secret that goes with the token. */
   secret: string;
 }
 
+/** The panel answered with an error status. */
 export class ApiError extends Error {
+  /** The HTTP status code. */
   readonly status: number;
+  /** The problem's title, or "HTTP <status>". */
   readonly title: string;
+  /** The problem's explanation, or null. */
   readonly detail: string | null;
+  /** The request's id from the problem or the X-Request-ID header, or null. */
   readonly requestId: string | null;
   /** seconds, from Retry-After on 429 and 503 */
   readonly retryAfter: number | null;
 
+  /**
+   * Create the error.
+   *
+   * @param status - The HTTP status code.
+   * @param problem - The problem details from the answer.
+   * @param retryAfter - Seconds to wait, or null.
+   * @param requestId - The X-Request-ID header, or null.
+   */
   constructor(status: number, problem: Problem, retryAfter: number | null, requestId: string | null) {
     super(problem.detail || problem.title || `HTTP ${status}`);
     this.name = "ApiError";
@@ -32,6 +48,11 @@ export class ApiError extends Error {
 
 /** The panel could not be reached at all (network, DNS, TLS, timeout). */
 export class UnreachableError extends Error {
+  /**
+   * Create the error.
+   *
+   * @param cause - The error that was thrown by the network call.
+   */
   constructor(cause: unknown) {
     super("The panel cannot be reached.");
     this.name = "UnreachableError";
@@ -62,21 +83,35 @@ export function normalizeOrigin(input: string): string | null {
   return null;
 }
 
+/** The shape of `fetch`, so tests can replace it. */
 type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
+/** Options of `PanelClient`. */
 export interface ClientOptions {
+  /** The function that makes the HTTP call; the global `fetch` by default. */
   fetch?: FetchLike;
+  /** How long to wait for an answer, in milliseconds; 15000 by default. */
   timeoutMs?: number;
+  /** The user a request acts for (X-Sudoo-Acting-For), when given. */
   actingFor?: string;
 }
 
+/** A client of one panel's API. */
 export class PanelClient {
+  /** The panel's origin, without a trailing slash. */
   readonly origin: string;
   private readonly credentials: Credentials;
   private readonly fetchImpl: FetchLike;
   private readonly timeoutMs: number;
   private readonly actingFor: string | undefined;
 
+  /**
+   * Create the client.
+   *
+   * @param origin - The panel's origin.
+   * @param credentials - The token and secret.
+   * @param options - Optional settings.
+   */
   constructor(origin: string, credentials: Credentials, options: ClientOptions = {}) {
     this.origin = origin.replace(/\/+$/, "");
     this.credentials = credentials;
@@ -123,12 +158,25 @@ export class PanelClient {
     return { status: response.status, body: (await response.json()) as T };
   }
 
+  /**
+   * Read a resource.
+   *
+   * @param path - The path, starting with /api/v1.
+   * @returns The envelope.
+   */
   async get<T>(path: string): Promise<Envelope<T>> {
     const answer = await this.request<Envelope<T>>("GET", path);
     if (!answer.body) throw new ApiError(answer.status, { title: "Empty answer" }, null, null);
     return answer.body;
   }
 
+  /**
+   * Send a POST request.
+   *
+   * @param path - The path, starting with /api/v1.
+   * @param body - The JSON body; an empty object by default.
+   * @returns The envelope.
+   */
   async post<T>(path: string, body: unknown = {}): Promise<Envelope<T>> {
     const answer = await this.request<Envelope<T>>("POST", path, body);
     if (!answer.body) throw new ApiError(answer.status, { title: "Empty answer" }, null, null);
@@ -148,14 +196,31 @@ export class PanelClient {
     return all;
   }
 
+  /**
+   * Read one instance.
+   *
+   * @param name - The instance's name.
+   * @returns The instance.
+   */
   async instance(name: string): Promise<Instance> {
     return (await this.get<Instance>(`/api/v1/instances/${encodeURIComponent(name)}`)).data;
   }
 
+  /**
+   * Read the projects.
+   *
+   * @returns The projects.
+   */
   async projects(): Promise<Project[]> {
     return (await this.get<Project[]>("/api/v1/projects")).data;
   }
 
+  /**
+   * Read one project.
+   *
+   * @param id - The project's id.
+   * @returns The project with its branches, and the default branch from the answer's meta, or null.
+   */
   async project(id: string): Promise<{ project: ProjectDetail; defaultBranch: string | null }> {
     const answer = await this.get<ProjectDetail>(`/api/v1/projects/${encodeURIComponent(id)}`);
     const defaultBranch = answer.meta?.default_branch;
@@ -168,14 +233,32 @@ export class PanelClient {
     return (await this.post<Job>(`/api/v1/instances/${encodeURIComponent(name)}/actions/${action}`, body)).data;
   }
 
+  /**
+   * Read one job.
+   *
+   * @param id - The job's id.
+   * @returns The job.
+   */
   async job(id: string): Promise<Job> {
     return (await this.get<Job>(`/api/v1/jobs/${encodeURIComponent(id)}`)).data;
   }
 
+  /**
+   * Read the latest jobs.
+   *
+   * @param limit - How many to read.
+   * @returns The jobs.
+   */
   async jobs(limit = 30): Promise<Job[]> {
     return (await this.get<Job[]>(`/api/v1/jobs?limit=${limit}`)).data;
   }
 
+  /**
+   * Read the latest alerts.
+   *
+   * @param limit - How many to read.
+   * @returns The alerts.
+   */
   async alerts(limit = 20): Promise<Alert[]> {
     return (await this.get<Alert[]>(`/api/v1/alerts?limit=${limit}`)).data;
   }
@@ -205,9 +288,14 @@ export class PanelClient {
 
 /** Links into the panel's web app. */
 export const panelLinks = {
+  /** The address of an instance in the panel. */
   instance: (origin: string, name: string) => `${origin}/i/${encodeURIComponent(name)}`,
+  /** The address of an instance's logs. */
   logs: (origin: string, name: string) => `${origin}/i/${encodeURIComponent(name)}/logs`,
+  /** The address of an instance's activity. */
   activity: (origin: string, name: string) => `${origin}/i/${encodeURIComponent(name)}/activity`,
+  /** The address of a project. */
   project: (origin: string, id: string) => `${origin}/projects/${encodeURIComponent(id)}`,
+  /** The address of a path in the panel; the origin alone when the path does not start with "/". */
   path: (origin: string, path: string) => (path.startsWith("/") ? origin + path : origin),
 };

@@ -6,6 +6,7 @@
 
 import type { InstanceStatus, Stage } from "./types";
 
+/** The English words, grouped by screen. The Arabic dictionary must have the same shape. */
 const en = {
   dir: "ltr" as "ltr" | "rtl",
   common: {
@@ -137,8 +138,10 @@ const en = {
   },
 };
 
+/** The shape of a dictionary. */
 export type Words = typeof en;
 
+/** The Arabic words. */
 const ar: Words = {
   dir: "rtl",
   common: {
@@ -270,14 +273,29 @@ const ar: Words = {
   },
 };
 
+/** The languages the extension speaks. */
 export type Locale = "en" | "ar";
+/** The dictionaries by language. */
 export const dictionaries: Record<Locale, Words> = { en, ar };
 
+/**
+ * Choose the language.
+ *
+ * @param setting - The person's setting; "auto" follows the browser.
+ * @param uiLanguage - The browser's language code.
+ * @returns "ar" when the browser language starts with "ar" under "auto", otherwise the setting or "en".
+ */
 export function pickLocale(setting: "auto" | Locale, uiLanguage: string): Locale {
   if (setting !== "auto") return setting;
   return uiLanguage.toLowerCase().startsWith("ar") ? "ar" : "en";
 }
 
+/**
+ * Get the dictionary of a language.
+ *
+ * @param locale - The language.
+ * @returns The words.
+ */
 export function wordsFor(locale: Locale): Words {
   return dictionaries[locale];
 }

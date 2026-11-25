@@ -1,9 +1,11 @@
-// Builds the extension into dist/chrome and dist/firefox, and (unless --dev) the store packages
-// release/sudoo-extension-<version>-chrome.zip and -firefox.zip. No remote code: everything is bundled here.
-//
-//   node scripts/build.mjs            production build + zips
-//   node scripts/build.mjs --dev      unminified, with source maps, no zips
-//   node scripts/build.mjs --dev --watch
+/**
+ * Builds the extension into dist/chrome and dist/firefox, and (unless --dev) the store packages
+ * release/sudoo-extension-<version>-chrome.zip and -firefox.zip. No remote code: everything is bundled here.
+ *
+ *   node scripts/build.mjs            production build + zips
+ *   node scripts/build.mjs --dev      unminified, with source maps, no zips
+ *   node scripts/build.mjs --dev --watch
+ */
 
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -11,12 +13,18 @@ import { fileURLToPath } from "node:url";
 import * as esbuild from "esbuild";
 import { zipDirectory } from "./zip.mjs";
 
+/** Repository root, one folder above scripts/. */
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+/** True for a development build: unminified, with linked source maps and no store packages. */
 const dev = process.argv.includes("--dev");
+/** True when the bundler should keep running and rebuild when a source file changes. */
 const watch = process.argv.includes("--watch");
+/** Contents of package.json; its version must match the manifest's. */
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+/** Folder of the Chrome build, dist/chrome. The Firefox build is copied from it. */
 const out = join(root, "dist", "chrome");
 
+/** Contents of static/manifest.json. */
 const manifest = JSON.parse(readFileSync(join(root, "static", "manifest.json"), "utf8"));
 if (manifest.version !== pkg.version)
   throw new Error(`manifest ${manifest.version} and package.json ${pkg.version} differ`);
@@ -24,6 +32,10 @@ if (manifest.version !== pkg.version)
 rmSync(join(root, "dist"), { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 
+/**
+ * Bundler options shared by all builds: bundle everything (no remote code), minify outside development, and target the
+ * oldest supported Chrome and Firefox.
+ */
 const common = {
   bundle: true,
   minify: !dev,
@@ -34,6 +46,10 @@ const common = {
   define: { "process.env.NODE_ENV": dev ? '"development"' : '"production"' },
 };
 
+/**
+ * The two bundler runs: the background worker and the pages as ES modules, and the GitHub content script as a plain
+ * script, because a content script cannot be a module.
+ */
 const builds = [
   // pages and the service worker are modules; a content script cannot be one
   {
@@ -49,6 +65,10 @@ const builds = [
   { ...common, format: "iife", entryPoints: { "content/github": "src/content/github.ts" }, outdir: out },
 ];
 
+/**
+ * Copies the files that are not bundled (static assets, the popup and options HTML and CSS, the shared stylesheet and
+ * the licence) into the Chrome build folder.
+ */
 function copyStatic() {
   cpSync(join(root, "static"), out, { recursive: true });
   for (const file of ["popup/popup.html", "popup/popup.css", "options/options.html", "options/options.css", "ui.css"]) {

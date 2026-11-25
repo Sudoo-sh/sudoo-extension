@@ -1,3 +1,5 @@
+/** Tests of the address and instance matching in src/lib/match.ts. */
+
 import { describe, expect, it } from "vitest";
 import {
   actionsFor,
@@ -11,6 +13,7 @@ import {
 } from "../src/lib/match";
 import type { Instance } from "../src/lib/types";
 
+/** Builds a complete instance for a test; `over` replaces any field. Only `name` is required. */
 const instance = (over: Partial<Instance> & { name: string }): Instance => ({
   status: "online",
   stage: "development",
@@ -23,6 +26,7 @@ const instance = (over: Partial<Instance> & { name: string }): Instance => ({
   ...over,
 });
 
+/** Test group for repository address normalization. */
 describe("repositories", () => {
   it("normalizes GitHub addresses", () => {
     expect(normalizeRepo("https://github.com/Acme/ERP")).toBe("acme/erp");
@@ -34,6 +38,7 @@ describe("repositories", () => {
   });
 });
 
+/** Test group for reading GitHub page addresses. */
 describe("GitHub pages", () => {
   it("reads repository, branch and pull-request pages", () => {
     expect(parseGitHubPath("/Acme/ERP")).toEqual({ repo: "acme/erp", kind: "repo", ref: null, pull: null });
@@ -73,6 +78,7 @@ describe("GitHub pages", () => {
   });
 });
 
+/** Test group for finding, grouping, searching and acting on instances. */
 describe("instances", () => {
   const list = [instance({ name: "a" }), instance({ name: "b", url: "https://erp.client.com:8443" })];
 

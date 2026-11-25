@@ -17,20 +17,34 @@ import type { PageRequest } from "../lib/messages";
 import { getPanels, getSettings, lockState, type PanelConfig, unlock } from "../lib/store";
 import type { Instance, Job, Project, QuickAction } from "../lib/types";
 
+/** The popup's state for one panel. */
 interface PanelView {
+  /** The saved panel. */
   panel: PanelConfig;
+  /** What was read from the panel, or null before the first read. */
   data: PanelData | null;
+  /** Why the panel could not be read, or null. */
   problem: PanelProblem | null;
+  /** Whether a read is running. */
   loading: boolean;
 }
 
+/** A job started from the popup, with its latest state. */
 interface RunningJob {
+  /** The action's label in the person's language. */
   action: string;
+  /** The job's state. */
   status: Job["status"];
+  /** Progress from 0 to 100, or null when unknown. */
   progress: number | null;
+  /** The error text of a failed job, or null. */
   error: string | null;
 }
 
+/**
+ * The popup's state: the panels, the search text, the address of the active tab, whether saved tokens are locked, the
+ * action waiting for a second click on a production instance, and the jobs in progress by panel and instance.
+ */
 const state = {
   views: [] as PanelView[],
   query: "",
@@ -40,10 +54,22 @@ const state = {
   jobs: new Map<string, RunningJob>(),
 };
 
+/** The dictionary of the chosen language. */
 let w: Words;
+/** The element the popup draws into. */
 const main = document.querySelector("main") as HTMLElement;
+/**
+ * Make the key of an instance in `state.jobs` and `state.confirming`.
+ *
+ * @param panelId - The panel's id.
+ * @param name - The instance's name.
+ * @returns The key.
+ */
 const keyOf = (panelId: string, name: string) => `${panelId}|${name}`;
 
+/**
+ * Set up the popup: language, search box, toolbar buttons, the active tab, saved data, then a fresh read of every panel.
+ */
 async function start(): Promise<void> {
   const settings = await getSettings();
   w = applyLocale(document, pickLocale(settings.locale, chrome.i18n.getUILanguage()));
@@ -72,10 +98,23 @@ async function start(): Promise<void> {
   search.focus();
 }
 
+/**
+ * Read every panel again.
+ *
+ * @param maxAgeMs - The oldest cached data that may be used, in milliseconds.
+ */
 async function refreshAll(maxAgeMs: number): Promise<void> {
   await Promise.all(state.views.map((view) => refresh(view, maxAgeMs)));
 }
 
+/**
+ * Read one panel and draw the popup.
+ *
+ * Without host permission or credentials the panel's problem is set instead.
+ *
+ * @param view - The panel's view.
+ * @param maxAgeMs - The oldest cached data that may be used, in milliseconds.
+ */
 async function refresh(view: PanelView, maxAgeMs: number): Promise<void> {
   view.loading = true;
   if (!(await hasHostPermission(view.panel.origin))) {
@@ -103,9 +142,24 @@ async function refresh(view: PanelView, maxAgeMs: number): Promise<void> {
 
 // ---- actions --------------------------------------------------------------------------------------------------
 
+/**
+ * Get the label of a quick action in the chosen language.
+ *
+ * @param action - The action.
+ * @returns The label.
+ */
 const ACTION_WORDS = (action: QuickAction) =>
   ({ start: w.actions.start, pause: w.actions.pause, restart: w.actions.restart, update: w.actions.update })[action];
 
+/**
+ * Run a quick action on an instance and follow its job.
+ *
+ * A production instance needs a second click: the first click only asks for confirmation.
+ *
+ * @param view - The panel's view.
+ * @param instance - The instance.
+ * @param action - The action.
+ */
 async function run(view: PanelView, instance: Instance, action: QuickAction): Promise<void> {
   const key = keyOf(view.panel.id, instance.name);
   const production = instance.stage === "production";
@@ -139,6 +193,14 @@ async function run(view: PanelView, instance: Instance, action: QuickAction): Pr
   }
 }
 
+/**
+ * Read a job every 1.5 seconds, up to 600 times, until it ends, then show a message and read the panel again.
+ *
+ * @param view - The panel's view.
+ * @param key - The key of the instance in `state.jobs`.
+ * @param jobId - The job's id.
+ * @param label - The action's label.
+ */
 async function follow(view: PanelView, key: string, jobId: string, label: string): Promise<void> {
   const client = await clientFor(view.panel);
   if (!client) return;
@@ -161,6 +223,12 @@ async function follow(view: PanelView, key: string, jobId: string, label: string
   }
 }
 
+/**
+ * Turn an error into text for the person.
+ *
+ * @param error - The error.
+ * @returns A message in the chosen language, or the panel's own detail.
+ */
 function errorText(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 401) return w.popup.tokenRefused;
@@ -173,6 +241,7 @@ function errorText(error: unknown): string {
 
 // ---- drawing --------------------------------------------------------------------------------------------------
 
+/** Draw the whole popup from `state`. */
 function render(): void {
   const parts: Node[] = [];
   if (state.locked) parts.push(unlockCard());
@@ -198,6 +267,11 @@ function render(): void {
   main.replaceChildren(...parts);
 }
 
+/**
+ * Make the card that asks for the passphrase of the saved tokens.
+ *
+ * @returns The card.
+ */
 function unlockCard(): HTMLElement {
   const input = h("input", {
     class: "input",
@@ -226,6 +300,11 @@ function unlockCard(): HTMLElement {
   return h("section", { class: "notice unlock" }, h("span", {}, w.popup.locked), form);
 }
 
+/**
+ * Make the card for the instance that is open in the active tab.
+ *
+ * @returns The card, or null when no instance matches the tab.
+ */
 function hereCard(): HTMLElement | null {
   if (!state.tabUrl) return null;
   for (const view of state.views) {
@@ -276,6 +355,12 @@ function hereCard(): HTMLElement | null {
   return null;
 }
 
+/**
+ * Make the section of one panel: its name, address, instance count and the instances that match the search.
+ *
+ * @param view - The panel's view.
+ * @returns The section.
+ */
 function panelSection(view: PanelView): HTMLElement {
   const { panel, data } = view;
   const instances = (data?.instances ?? []).filter((i) => matchesQuery(i, state.query, panel.label));
@@ -330,6 +415,15 @@ function panelSection(view: PanelView): HTMLElement {
   return section;
 }
 
+/**
+ * Group instances by project and sort them.
+ *
+ * Projects without a name in the list are made from the instance's own data. Instances without a project are last.
+ *
+ * @param projects - The panel's projects, or null when they could not be read.
+ * @param instances - The instances.
+ * @returns The groups, with projects sorted by name and instances by stage.
+ */
 function groups(
   projects: Project[] | null,
   instances: Instance[],
@@ -360,6 +454,14 @@ function groups(
     .sort((a, b) => (a.project ? (b.project ? a.project.name.localeCompare(b.project.name) : -1) : 1));
 }
 
+/**
+ * Make the row of one instance with its state, job and actions.
+ *
+ * @param view - The panel's view.
+ * @param instance - The instance.
+ * @param here - Whether the instance is the one in the active tab.
+ * @returns The row.
+ */
 function instanceRow(view: PanelView, instance: Instance, here: boolean): HTMLElement {
   const key = keyOf(view.panel.id, instance.name);
   const running = state.jobs.get(key);
@@ -459,6 +561,12 @@ function progressBar(percent: number): HTMLElement {
   );
 }
 
+/**
+ * Make the notice that explains why a panel could not be read.
+ *
+ * @param view - The panel's view.
+ * @returns The notice.
+ */
 function problemNotice(view: PanelView): HTMLElement {
   const openOptions = () => void chrome.runtime.openOptionsPage();
   switch (view.problem) {

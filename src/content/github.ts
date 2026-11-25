@@ -17,18 +17,37 @@ import type {
 } from "../lib/messages";
 import { CONTENT_CSS } from "./github-style";
 
+/**
+ * Send a request to the service worker.
+ *
+ * @param message - The request.
+ * @returns The answer, or null when there is none or the extension was reloaded or removed.
+ */
 const send = <T>(message: GitHubRequest): Promise<T | null> =>
   chrome.runtime.sendMessage(message).then(
     (answer) => (answer ?? null) as T | null,
     () => null, // the extension was reloaded or removed
   );
 
+/** The element that holds the shadow root, or null while the box is not shown. */
 let host: HTMLElement | null = null;
+/** The closed shadow root of the box, or null while the box is not shown. */
 let root: ShadowRoot | null = null;
+/** The address path the box was last drawn for; a new path causes a new draw. */
 let lastKey = "";
+/** Whether the card is open (true) or only the pill is shown (false). */
 let expanded = false;
+/** Counts draws, so an answer that arrives after the page changed can be ignored. */
 let generation = 0;
 
+/**
+ * Make an element with attributes and children.
+ *
+ * @param tag - The tag name.
+ * @param attrs - The attributes.
+ * @param children - The children; text is added as text.
+ * @returns The element.
+ */
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   attrs: Record<string, string> = {},
@@ -49,11 +68,25 @@ function onPress(node: HTMLElement, handler: () => void): void {
   });
 }
 
+/**
+ * Make a link that opens in a new tab.
+ *
+ * @param href - The address.
+ * @param text - The link text.
+ * @param className - The class name.
+ * @returns The link.
+ */
 function link(href: string, text: string, className: string): HTMLAnchorElement {
   const a = el("a", { href, target: "_blank", rel: "noopener noreferrer", class: className }, text);
   return a;
 }
 
+/**
+ * Create the host element and its shadow root when they are missing, and set the text direction.
+ *
+ * @param dir - The text direction.
+ * @returns The shadow root.
+ */
 function ensureHost(dir: "ltr" | "rtl"): ShadowRoot {
   if (!host?.isConnected) {
     host = el("div", { "data-sudoo": "" });
@@ -68,17 +101,28 @@ function ensureHost(dir: "ltr" | "rtl"): ShadowRoot {
   return root as ShadowRoot;
 }
 
+/** Take the box off the page. */
 function remove(): void {
   host?.remove();
   host = null;
   root = null;
 }
 
+/**
+ * Read the repositories the person chose to hide the box on.
+ *
+ * @returns The repositories' full names.
+ */
 async function hiddenRepos(): Promise<string[]> {
   const items = await chrome.storage.local.get("githubHidden");
   return (items.githubHidden as string[] | undefined) ?? [];
 }
 
+/**
+ * Read the head branch of a pull request from the page.
+ *
+ * @returns The text GitHub shows ("owner:branch"), or null when it is not on the page.
+ */
 function readHeadRef(): string | null {
   const selectors = [".head-ref[title]", "span.commit-ref.head-ref", ".head-ref", '[data-testid="head-ref"]'];
   for (const selector of selectors) {
@@ -89,6 +133,13 @@ function readHeadRef(): string | null {
   return null;
 }
 
+/**
+ * Make the row of one instance: its state, name, stage, job or status, and links.
+ *
+ * @param words - The dictionary.
+ * @param instance - The instance.
+ * @returns The row.
+ */
 function statusRow(words: Words, instance: InstanceSummary): HTMLElement {
   const group = stateGroup(instance.status);
   const row = el(
@@ -107,6 +158,16 @@ function statusRow(words: Words, instance: InstanceSummary): HTMLElement {
   return el("div", { class: "instance" }, row, el("div", { class: "status" }, status), actions);
 }
 
+/**
+ * Make the block of one panel: the branch, its instances and the button that creates one.
+ *
+ * @param words - The dictionary.
+ * @param match - What the panel knows about the page.
+ * @param repo - The repository's full name.
+ * @param many - Whether more than one panel matches, so the panel's name is shown.
+ * @param rerender - Draws the box again.
+ * @returns The block.
+ */
 function matchBlock(words: Words, match: GitHubMatch, repo: string, many: boolean, rerender: () => void): HTMLElement {
   const block = el("section", { class: "match" });
   if (many) block.append(el("div", { class: "panel" }, match.panelLabel));
@@ -144,6 +205,18 @@ function matchBlock(words: Words, match: GitHubMatch, repo: string, many: boolea
   return block;
 }
 
+/**
+ * Ask the service worker to create a development instance and follow its job until it ends.
+ *
+ * The job is read every 3 seconds, up to 400 times.
+ *
+ * @param words - The dictionary.
+ * @param match - What the panel knows about the page.
+ * @param repo - The repository's full name.
+ * @param branch - The branch.
+ * @param area - The element that shows progress and errors.
+ * @param rerender - Draws the box again when the job succeeds.
+ */
 async function createInstance(
   words: Words,
   match: GitHubMatch,
@@ -181,6 +254,11 @@ async function createInstance(
   }
 }
 
+/**
+ * Draw the box for the current address.
+ *
+ * @param force - Draw even when the path did not change.
+ */
 async function render(force = false): Promise<void> {
   const page = parseGitHubPath(location.pathname);
   const key = page ? `${location.pathname}` : "";
@@ -252,6 +330,11 @@ async function render(force = false): Promise<void> {
   shadow.replaceChildren(expanded ? card : pill);
 }
 
+/**
+ * Make the small logo of the box.
+ *
+ * @returns The svg element.
+ */
 function logo(): SVGSVGElement {
   const ns = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(ns, "svg");
@@ -279,9 +362,11 @@ function logo(): SVGSVGElement {
 }
 
 // GitHub navigates without reloading (Turbo): draw again when the address changes.
+/** Draw again after a navigation. */
 const again = () => void render();
 document.addEventListener("turbo:load", again);
 window.addEventListener("popstate", again);
+/** The browser's Navigation API object, when there is one. */
 const navigation = (window as unknown as { navigation?: EventTarget }).navigation;
 navigation?.addEventListener("navigatesuccess", again);
 void render();

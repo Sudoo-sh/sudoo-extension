@@ -1,6 +1,8 @@
-// Development only (never packaged): stands in for the chrome.* APIs so the popup and the settings page can be
-// opened as ordinary pages from the mock panel (npm run preview), for checking the design and taking screenshots.
-// Query: ?lang=ar&tab=https://acme-retail-main.demo.sudoo.sh/odoo&empty=1
+/**
+ * Development only (never packaged): stands in for the chrome.* APIs so the popup and the settings page can be
+ * opened as ordinary pages from the mock panel (npm run preview), for checking the design and taking screenshots.
+ * Query: ?lang=ar&tab=https://acme-retail-main.demo.sudoo.sh/odoo&empty=1
+ */
 (() => {
   const params = new URLSearchParams(location.search);
   const memory = (seed) => {

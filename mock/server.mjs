@@ -1,22 +1,32 @@
-// A local stand-in for a Sudoo.sh panel's API, for tests and for trying the extension without a real panel.
-// It checks signatures exactly as docs/PANEL_API.md describes (token, 5-minute timestamp, single-use nonce, HMAC over
-// the five or six lines) and answers with the panel's shapes, using the data of the panel's demo (web/src/demo).
-//
-//   npm run mock                      http://localhost:8787, write scope
-//   node mock/server.mjs --scope instances --port 8788
-//
-// The token and signing secret below are test values of this mock only: they open nothing else.
+/**
+ * A local stand-in for a Sudoo.sh panel's API, for tests and for trying the extension without a real panel.
+ * It checks signatures exactly as docs/PANEL_API.md describes (token, 5-minute timestamp, single-use nonce, HMAC over
+ * the five or six lines) and answers with the panel's shapes, using the data of the panel's demo (web/src/demo).
+ *
+ *   npm run mock                      http://localhost:8787, write scope
+ *   node mock/server.mjs --scope instances --port 8788
+ *
+ * The token and signing secret below are test values of this mock only: they open nothing else.
+ */
 
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
 
+/** API token the mock panel accepts by default. A test value that opens nothing else. */
 export const MOCK_TOKEN = "sudoo_mock_0123456789abcdef";
+/** Signing secret the mock panel uses to check request signatures. A test value that opens nothing else. */
 export const MOCK_SECRET = "mock-signing-secret-for-local-tests";
 
+/** GitHub account name used in the demo repositories' addresses. */
 const OWNER = "example-integrator";
+/** Demo projects: id to display name. */
 const PROJECTS = { "acme-retail": "Acme Retail", "nile-logistics": "Nile Logistics", "zahra-clinic": "Zahra Clinic" };
+/**
+ * Demo instances created at start, as [project id, branch, stage, Odoo version, edition, status]. A null project and
+ * branch makes a plain Odoo instance without a repository.
+ */
 const SEEDS = [
   ["acme-retail", "main", "production", "18.0", "enterprise", "online"],
   ["acme-retail", "staging", "staging", "18.0", "enterprise", "online"],
@@ -29,22 +39,32 @@ const SEEDS = [
   ["zahra-clinic", "appointments", "staging", "19.0", "enterprise", "online"],
   [null, null, "development", "19.0", "community", "switched_off"],
 ];
+/** Branches each demo project has on GitHub, whether or not they have an instance. */
 const BRANCHES = {
   "acme-retail": ["main", "staging", "pos-refunds", "loyalty-points", "gift-cards"],
   "nile-logistics": ["main", "fleet-gps", "feature/upgrade-18", "feature/customs-forms"],
   "zahra-clinic": ["main", "appointments", "lab-results"],
 };
+/** Actions the mock panel runs on an instance: action id to the title shown in the job. */
 const ACTIONS = { start: "Start", pause: "Pause", restart: "Restart", update: "Get latest code", backup: "Back up" };
+/** Default time in milliseconds that a job takes to finish. */
 const JOB_MS = 4000;
 
+/**
+ * Turns a branch name into a lowercase name part: runs of other characters become one hyphen, and hyphens at both ends
+ * are removed.
+ */
 const slug = (text) =>
   text
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+/** Formats a time in milliseconds as an ISO 8601 UTC string without fractions, as the panel's API does. */
 const iso = (ms) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+/** Hex SHA-256 of a text, used to hash the request body for the signature. */
 const sha256 = (text) => createHash("sha256").update(text).digest("hex");
 
+/** Builds the starting set of instances from SEEDS, keyed by instance name. */
 function seed() {
   const instances = new Map();
   for (const [repo, branch, stage, version, edition, status] of SEEDS) {
@@ -54,6 +74,11 @@ function seed() {
   return instances;
 }
 
+/**
+ * Builds one instance in the shape the panel's API returns, with demo values for the address, database, commit and
+ * settings. Production instances do not auto-update or auto-pause and are kept forever; others are deleted after 30
+ * days.
+ */
 function makeInstance({ name, repo, branch, stage, version, edition, status }) {
   return {
     name,
@@ -81,6 +106,7 @@ function makeInstance({ name, repo, branch, stage, version, edition, status }) {
   };
 }
 
+/** Content types for the files served in preview mode, by file extension. */
 const TYPES = {
   ".html": "text/html",
   ".js": "text/javascript",
@@ -112,6 +138,11 @@ function serveFile(dist, req, res) {
   }
 }
 
+/**
+ * Creates the mock panel's HTTP server without starting to listen. Takes `token`, `secret`, `scope` ("write",
+ * "instances" or "read"), `jobMs` (job duration) and `serve` (the build folder to serve in preview mode, or null).
+ * Returns the Node `server`, the `instances` by name and the `jobs` by id.
+ */
 export function createMockPanel({
   token = MOCK_TOKEN,
   secret = MOCK_SECRET,
@@ -124,6 +155,11 @@ export function createMockPanel({
   const nonces = new Map();
   let counter = 0;
 
+  /**
+   * Builds the API's view of a job from the time passed since it started: each step is waiting, running or done, and
+   * after `jobMs` the job ends as success (or failed for a job made to fail). The first view after the end also moves
+   * the instance to the job's result status and clears its current job.
+   */
   function jobView(job) {
     const elapsed = Date.now() - job.started;
     const done = elapsed >= jobMs;
@@ -159,6 +195,10 @@ export function createMockPanel({
     };
   }
 
+  /**
+   * Starts a job for an instance and returns its view. Sets the instance's current job and marks it busy, unless it is
+   * still being created.
+   */
   function startJob(instance, action, steps, result, fail = false) {
     const id = (++counter).toString(16).padStart(12, "0");
     const job = { id, instance: instance.name, action, steps, started: Date.now(), result, fail, finished: false };
@@ -176,6 +216,10 @@ export function createMockPanel({
     return view;
   }
 
+  /**
+   * Builds the API's view of a project from the demo data: branch counts by stage, its instances, its production
+   * branches and the list of its branches with the instance of each.
+   */
   function projectView(id) {
     const members = [...instances.values()].filter((i) => i.project?.id === id);
     const branchStage = (branch) => members.find((i) => i.git.branch === branch)?.stage ?? "development";
@@ -206,6 +250,10 @@ export function createMockPanel({
     };
   }
 
+  /**
+   * Creates a development instance for a branch and starts its creation job. Returns 409 if the instance name exists.
+   * Otherwise returns 202 with the job's location.
+   */
   function createFor(repoId, branch, version, edition) {
     const name = `${repoId}-${slug(branch)}`;
     if (instances.has(name)) return { status: 409, problem: { title: "Conflict", detail: `${name} exists already.` } };
@@ -228,6 +276,11 @@ export function createMockPanel({
     return { status: 202, body: { data: job }, location: job.links.self, contentLocation: instance.links.self };
   }
 
+  /**
+   * Checks the request's signature the way the panel does. Returns the reason for refusing (unknown token, timestamp
+   * more than 5 minutes off, bad nonce, nonce used before, signature mismatch) or null when the request is valid. A
+   * valid request's nonce is remembered for 5 minutes.
+   */
   function verify(req, body) {
     const auth = req.headers.authorization ?? "";
     const ts = Number(req.headers["x-sudoo-timestamp"]);
@@ -251,6 +304,11 @@ export function createMockPanel({
     return null;
   }
 
+  /**
+   * Answers one verified request: /server, /instances (list and create), /instances/{name} and its actions, /jobs,
+   * /projects (list, one project, and an instance for a branch) and /alerts. Returns the status and body, or a problem
+   * for a refusal. The token's scope limits what is allowed.
+   */
   function route(method, url, body) {
     const path = url.pathname.replace(/^\/api\/v1/, "");
     const parts = path.split("/").filter(Boolean).map(decodeURIComponent);

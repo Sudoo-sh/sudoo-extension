@@ -1,14 +1,19 @@
-// A small, dependency-free ZIP writer (deflate, fixed timestamps) so the store package is the same bytes for the
-// same sources: anyone can rebuild it and compare.
+/**
+ * A small, dependency-free ZIP writer (deflate, fixed timestamps) so the store package is the same bytes for the
+ * same sources: anyone can rebuild it and compare.
+ */
 
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { crc32, deflateRawSync } from "node:zlib";
 
 // 2026-01-01 00:00 in DOS time
+/** DOS time field written for every entry: midnight. Fixed so the same sources give the same bytes. */
 const DOS_TIME = 0;
+/** DOS date field written for every entry: 1 January 2026. Fixed for the same reason as DOS_TIME. */
 const DOS_DATE = ((2026 - 1980) << 9) | (1 << 5) | 1;
 
+/** Lists every file below a folder, sorted by name, so the package order is stable. Source maps are left out. */
 function files(dir) {
   const list = [];
   for (const name of readdirSync(dir).sort()) {
@@ -19,6 +24,11 @@ function files(dir) {
   return list;
 }
 
+/**
+ * Writes a ZIP file of a folder: each file is deflated (or stored when deflating does not make it smaller), with names
+ * in UTF-8, fixed timestamps and permissions rw-r--r--.
+ * Takes `dir`, the folder to pack, and `target`, the ZIP file to write. Overwrites `target` if it exists.
+ */
 export function zipDirectory(dir, target) {
   const locals = [];
   const centrals = [];

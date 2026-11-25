@@ -57,14 +57,20 @@ const RESERVED = new Set([
   "home",
 ]);
 
+/** The kind of repository page: home, tree, blob, commit list, pull request or compare. */
 export type GitHubPageKind = "repo" | "tree" | "blob" | "commits" | "pull" | "compare";
 
+/** A GitHub page that is about one repository's code. */
 export interface GitHubPage {
   /** "owner/repo", lower case */
   repo: string;
+  /** The kind of page. */
   kind: GitHubPageKind;
-  /** what follows tree/, blob/, commits/ or compare/: the branch, possibly followed by a path; null on the repo's home */
+  /**
+   * what follows tree/, blob/, commits/ or compare/: the branch, possibly followed by a path; null on the repo's home
+   */
   ref: string | null;
+  /** The pull request's number, or null on other pages. */
   pull: number | null;
 }
 
@@ -92,6 +98,12 @@ export function parseGitHubPath(pathname: string): GitHubPage | null {
   return null;
 }
 
+/**
+ * Decode a percent-encoded path part.
+ *
+ * @param part - The part.
+ * @returns The decoded text, or the part itself when it is not valid.
+ */
 function safeDecode(part: string): string {
   try {
     return decodeURIComponent(part);
@@ -126,19 +138,49 @@ export function parseHeadRef(text: string | null | undefined): { owner: string |
   return { owner: null, branch: value };
 }
 
+/**
+ * Find the project whose repository is a repository.
+ *
+ * @param projects - The projects.
+ * @param repo - The repository's full name, lower case.
+ * @returns The project, or null.
+ */
 export function findProject(projects: readonly Project[], repo: string): Project | null {
   return projects.find((project) => normalizeRepo(project.repository.url) === repo) ?? null;
 }
 
+/** The sort position of each stage: production first. */
 const STAGE_RANK: Record<Stage, number> = { production: 0, staging: 1, development: 2 };
 
+/**
+ * Compare two instances by stage, then by name, for sorting.
+ *
+ * @param a - The first instance.
+ * @param b - The second instance.
+ * @returns A negative number, zero or a positive number.
+ */
 export const byStage = (a: Instance, b: Instance): number =>
   STAGE_RANK[a.stage] - STAGE_RANK[b.stage] || a.name.localeCompare(b.name);
 
+/**
+ * List the instances of a repository, sorted by stage and name.
+ *
+ * @param instances - The instances.
+ * @param repo - The repository's full name, lower case.
+ * @returns The matching instances.
+ */
 export function instancesOfRepo(instances: readonly Instance[], repo: string): Instance[] {
   return instances.filter((instance) => normalizeRepo(instance.git.repository) === repo).sort(byStage);
 }
 
+/**
+ * List the instances of a repository that run a branch.
+ *
+ * @param instances - The instances.
+ * @param repo - The repository's full name, lower case.
+ * @param branch - The branch.
+ * @returns The matching instances.
+ */
 export function instancesOfBranch(instances: readonly Instance[], repo: string, branch: string): Instance[] {
   return instancesOfRepo(instances, repo).filter((instance) => instance.git.branch === branch);
 }
@@ -150,6 +192,12 @@ export function instanceForUrl(instances: readonly Instance[], tabUrl: string | 
   return instances.find((instance) => hostOf(instance.url) === host) ?? null;
 }
 
+/**
+ * Read the lower-case host (with the port) of an http or https address.
+ *
+ * @param url - The address.
+ * @returns The host, or null when the address is empty, not valid or not http or https.
+ */
 function hostOf(url: string | null | undefined): string | null {
   if (!url) return null;
   try {
@@ -163,6 +211,12 @@ function hostOf(url: string | null | undefined): string | null {
 /** The four states the panel's dashboard shows. */
 export type StateGroup = "online" | "working" | "paused" | "off";
 
+/**
+ * Map a status to the group the dashboard shows.
+ *
+ * @param status - The instance's status.
+ * @returns "online", "paused" or "off" for those statuses, "working" for every other one.
+ */
 export function stateGroup(status: InstanceStatus): StateGroup {
   switch (status) {
     case "online":

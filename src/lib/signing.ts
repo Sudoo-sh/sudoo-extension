@@ -6,16 +6,36 @@
  * Only Web Crypto is used, so the same code runs in the service worker, the popup and Node (tests).
  */
 
+/** Turns text into bytes. */
 const encoder = new TextEncoder();
 
+/**
+ * Write bytes as lower-case hexadecimal.
+ *
+ * @param buffer - The bytes.
+ * @returns The hex text.
+ */
 export function toHex(buffer: ArrayBuffer): string {
   return Array.from(new Uint8Array(buffer), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/**
+ * Hash text with SHA-256.
+ *
+ * @param text - The text, read as UTF-8.
+ * @returns The hash as hex.
+ */
 export async function sha256Hex(text: string): Promise<string> {
   return toHex(await crypto.subtle.digest("SHA-256", encoder.encode(text)));
 }
 
+/**
+ * Sign text with HMAC-SHA-256.
+ *
+ * @param secret - The secret, read as UTF-8.
+ * @param text - The text, read as UTF-8.
+ * @returns The signature as hex.
+ */
 export async function hmacSha256Hex(secret: string, text: string): Promise<string> {
   const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, [
     "sign",
@@ -23,6 +43,7 @@ export async function hmacSha256Hex(secret: string, text: string): Promise<strin
   return toHex(await crypto.subtle.sign("HMAC", key, encoder.encode(text)));
 }
 
+/** The characters a nonce is made of. */
 const NONCE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 /** 32 characters from [A-Za-z0-9-_]; the panel accepts 16 to 64. */
@@ -31,15 +52,22 @@ export function makeNonce(length = 32): string {
   return Array.from(bytes, (b) => NONCE_ALPHABET[b & 63]).join("");
 }
 
+/** The pattern a value of X-Sudoo-Acting-For must match. */
 export const ACTING_FOR = /^[A-Za-z0-9._@+-]{1,120}$/;
 
+/** What is signed. */
 export interface SignInput {
+  /** The HTTP method. */
   method: string;
   /** the path with its query, for example /api/v1/instances?limit=100 */
   path: string;
+  /** The exact request body; empty when there is none. */
   body: string;
+  /** The time in seconds since 1970. */
   timestamp: number;
+  /** The single-use nonce. */
   nonce: string;
+  /** The user the request acts for, when given. */
   actingFor?: string;
 }
 
@@ -56,6 +84,13 @@ export async function canonicalText(input: SignInput): Promise<string> {
   return lines.join("\n");
 }
 
+/**
+ * Make the value of the X-Sudoo-Signature header.
+ *
+ * @param secret - The signing secret.
+ * @param input - What to sign.
+ * @returns "sha256=" followed by the hex signature.
+ */
 export async function signatureFor(secret: string, input: SignInput): Promise<string> {
   return `sha256=${await hmacSha256Hex(secret, await canonicalText(input))}`;
 }
