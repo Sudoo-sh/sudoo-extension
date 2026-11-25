@@ -36,3 +36,8 @@ repos:
         language: system
         types_or: [ts]
         pass_filenames: false
+      - id: docs
+        name: docs (every file, function, type and field has a comment)
+        entry: node scripts/check-docs.mjs
+        language: system
+        types_or: [ts, javascript]
