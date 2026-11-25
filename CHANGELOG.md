@@ -6,6 +6,9 @@ All notable changes to the Sudoo.sh browser extension. The version follows the S
 
 ### Changed
 
+- **Docs check:** `scripts/check-docs.mjs` (run by `npm run lint`, `npm run check` and the pre-commit hook) fails when a
+  source file has no header comment, or a function, class, type, interface, enum, constant or field has no `/** */`
+  comment. It reads comments and layout with a small lexer, not a TypeScript parser. No dependencies, no behaviour change.
 - **Documentation in the code:** a header comment in every source file and TSDoc on every function, class, type and
   interface field, in the source, tests, build scripts and mock panel. Comments only: the built extension is
   byte-identical. No behaviour change.

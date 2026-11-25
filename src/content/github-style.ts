@@ -1,3 +1,7 @@
+/**
+ * The styles of the box the extension adds to GitHub pages, as one string for the box's shadow root.
+ */
+
 /** The GitHub box's styles: the panel's tokens (web/src/styles/_tokens.scss), scoped to the shadow root. */
 export const CONTENT_CSS = `
 :host { all: initial; }
