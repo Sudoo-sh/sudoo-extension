@@ -46,7 +46,12 @@ export async function hmacSha256Hex(secret: string, text: string): Promise<strin
 /** The characters a nonce is made of. */
 const NONCE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
-/** 32 characters from [A-Za-z0-9-_]; the panel accepts 16 to 64. */
+/**
+ * Make a random single-use nonce from [A-Za-z0-9-_]; the panel accepts 16 to 64 characters.
+ *
+ * @param length - The number of characters; 32 by default.
+ * @returns The nonce.
+ */
 export function makeNonce(length = 32): string {
   const bytes = crypto.getRandomValues(new Uint8Array(length));
   return Array.from(bytes, (b) => NONCE_ALPHABET[b & 63]).join("");
@@ -71,7 +76,13 @@ export interface SignInput {
   actingFor?: string;
 }
 
-/** The text that is signed: lines joined with \n, no newline at the end. */
+/**
+ * Build the text that is signed: lines joined with \n, no newline at the end. It must match the panel's own
+ * canonical text byte for byte, or the panel refuses the request.
+ *
+ * @param input - The parts of the request that are signed.
+ * @returns The canonical text.
+ */
 export async function canonicalText(input: SignInput): Promise<string> {
   const lines = [
     String(input.timestamp),
@@ -95,7 +106,14 @@ export async function signatureFor(secret: string, input: SignInput): Promise<st
   return `sha256=${await hmacSha256Hex(secret, await canonicalText(input))}`;
 }
 
-/** The headers of one signed request. A new nonce and timestamp are made unless given (tests give them). */
+/**
+ * Build the headers of one signed request. A new nonce and timestamp are made unless given (tests give them).
+ *
+ * @param credentials - The token and signing secret.
+ * @param request - The method, the path with its query, the exact body and the user the request acts for.
+ * @returns Authorization, X-Sudoo-Timestamp, X-Sudoo-Nonce and X-Sudoo-Signature; X-Sudoo-Acting-For and
+ *   Content-Type when they apply.
+ */
 export async function signedHeaders(
   credentials: { token: string; secret: string },
   request: { method: string; path: string; body?: string; actingFor?: string },

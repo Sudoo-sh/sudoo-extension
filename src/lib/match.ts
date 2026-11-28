@@ -5,7 +5,13 @@
 
 import type { Instance, InstanceStatus, Project, Stage } from "./types";
 
-/** "https://github.com/Acme/ERP.git", "git@github.com:acme/erp" ... -> "acme/erp"; null for anything else. */
+/**
+ * Reduce a GitHub repository address to "owner/name" in lower case:
+ * "https://github.com/Acme/ERP.git", "git@github.com:acme/erp" ... -> "acme/erp".
+ *
+ * @param url - The repository address (https, scp-like or ssh form).
+ * @returns "owner/name" in lower case, or null for an empty value or anything that is not a GitHub repository.
+ */
 export function normalizeRepo(url: string | null | undefined): string | null {
   if (!url) return null;
   const match =
@@ -74,7 +80,13 @@ export interface GitHubPage {
   pull: number | null;
 }
 
-/** Reads a github.com path. Answers null for pages that are not about one repository's code. */
+/**
+ * Read a github.com path.
+ *
+ * @param pathname - The path of the page's URL, for example "/acme/erp/tree/main/addons".
+ * @returns The repository, the kind of page, the ref and the pull request's number; null for pages that are not
+ *   about one repository's code (GitHub's own pages, settings, issues ...).
+ */
 export function parseGitHubPath(pathname: string): GitHubPage | null {
   const parts = pathname.split("/").filter(Boolean).map(safeDecode);
   if (parts.length < 2) return null;
@@ -115,6 +127,10 @@ function safeDecode(part: string): string {
 /**
  * A ref from a URL is "<branch>" or "<branch>/<path>", and a branch may contain "/" itself: the longest known
  * branch that the ref starts with wins. Without a match the first part is taken.
+ *
+ * @param ref - The ref from the URL.
+ * @param known - The branches the panel knows for the repository.
+ * @returns The branch.
  */
 export function resolveBranch(ref: string, known: readonly string[]): string {
   let best: string | null = null;
@@ -125,7 +141,13 @@ export function resolveBranch(ref: string, known: readonly string[]): string {
   return best ?? ref.split("/")[0] ?? ref;
 }
 
-/** The PR's head branch from GitHub's page text "owner:branch" or "branch"; a fork's head is another repository. */
+/**
+ * Read the PR's head branch from GitHub's page text "owner:branch" or "branch"; a fork's head is another
+ * repository, so the owner is kept for the caller to compare.
+ *
+ * @param text - The text of the head ref on the page.
+ * @returns The owner (null when the text has none) and the branch, or null when the text is empty.
+ */
 export function parseHeadRef(text: string | null | undefined): { owner: string | null; branch: string } | null {
   const value = text?.trim();
   if (!value) return null;
@@ -185,7 +207,13 @@ export function instancesOfBranch(instances: readonly Instance[], repo: string, 
   return instancesOfRepo(instances, repo).filter((instance) => instance.git.branch === branch);
 }
 
-/** The instance whose public address is the tab's (same host and port); case does not matter. */
+/**
+ * Find the instance whose public address is the tab's (same host and port); case does not matter.
+ *
+ * @param instances - The panel's instances.
+ * @param tabUrl - The tab's address.
+ * @returns The instance, or null when none matches or the address is not http or https.
+ */
 export function instanceForUrl(instances: readonly Instance[], tabUrl: string | null | undefined): Instance | null {
   const host = hostOf(tabUrl);
   if (!host) return null;
@@ -231,7 +259,15 @@ export function stateGroup(status: InstanceStatus): StateGroup {
   }
 }
 
-/** Every word of the query must appear in the name, branch, project, repository, stage or version. */
+/**
+ * Tell whether an instance matches a search. Every word of the query must appear in the name, branch, project,
+ * repository, stage, status or version, or in `extra`; case does not matter.
+ *
+ * @param instance - The instance.
+ * @param query - The search text; empty matches everything.
+ * @param extra - More text to search in, for example the panel's name.
+ * @returns True when every word is found.
+ */
 export function matchesQuery(instance: Instance, query: string, extra = ""): boolean {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (!words.length) return true;
@@ -252,7 +288,13 @@ export function matchesQuery(instance: Instance, query: string, extra = ""): boo
   return words.every((word) => hay.includes(word));
 }
 
-/** Which quick actions make sense for a status. */
+/**
+ * Tell which quick actions make sense for an instance. None while a job runs; update only for an instance from a
+ * repository.
+ *
+ * @param instance - The instance.
+ * @returns For each action, whether it is offered.
+ */
 export function actionsFor(instance: Instance): { start: boolean; pause: boolean; restart: boolean; update: boolean } {
   const group = stateGroup(instance.status);
   const idle = instance.current_job === null && instance.status !== "creating" && instance.status !== "busy";

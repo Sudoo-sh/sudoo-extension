@@ -106,7 +106,13 @@ export function buildMatch(
   };
 }
 
-/** The Odoo version and edition a new instance of the repository gets when created without its project. */
+/**
+ * Work out the Odoo version and edition a new instance of the repository gets when created without its project.
+ *
+ * @param project - The repository's project, or null.
+ * @param ofRepo - The instances of the repository; the first one leads when there is no project.
+ * @returns The version and edition, or null when neither a project nor an instance says.
+ */
 export function versionFor(
   project: Project | null,
   ofRepo: readonly Instance[],

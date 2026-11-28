@@ -28,6 +28,11 @@ function files(dir) {
  * Writes a ZIP file of a folder: each file is deflated (or stored when deflating does not make it smaller), with names
  * in UTF-8, fixed timestamps and permissions rw-r--r--.
  * Takes `dir`, the folder to pack, and `target`, the ZIP file to write. Overwrites `target` if it exists.
+ *
+ * @param {string} dir - The folder to pack; its files are added in sorted order so the ZIP is reproducible.
+ * @param {string} target - The ZIP file to write.
+ * @returns {void}
+ * @throws When a file cannot be read or the target cannot be written (the error from `node:fs`).
  */
 export function zipDirectory(dir, target) {
   const locals = [];

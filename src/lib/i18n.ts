@@ -300,7 +300,13 @@ export function wordsFor(locale: Locale): Words {
   return dictionaries[locale];
 }
 
-/** Applies the language and direction to a document. */
+/**
+ * Apply the language and direction to a document (sets `lang` and `dir` on its root element).
+ *
+ * @param doc - The document to change.
+ * @param locale - The language.
+ * @returns The words of that language.
+ */
 export function applyLocale(doc: Document, locale: Locale): Words {
   const words = wordsFor(locale);
   doc.documentElement.lang = locale;
