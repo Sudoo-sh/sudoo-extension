@@ -60,11 +60,23 @@ export class UnreachableError extends Error {
   }
 }
 
-/** A branch name may contain "/": each part is encoded, the slashes are kept (PANEL_API.md, Projects). */
+/**
+ * Encode a branch name for a URL path. A branch name may contain "/": each part is encoded, the slashes are kept
+ * (PANEL_API.md, Projects).
+ *
+ * @param branch - The branch name.
+ * @returns The encoded branch, ready to put in a path.
+ */
 export const encodeBranch = (branch: string): string => branch.split("/").map(encodeURIComponent).join("/");
 
-/** Accepts "panel.example.com", "https://panel.example.com/i/x" ...; gives the origin, or null when not usable.
- *  http is allowed only for this computer (a local panel or the mock). */
+/**
+ * Turn what the user typed into a panel's origin. Accepts "panel.example.com", "https://panel.example.com/i/x" ...
+ * http is allowed only for this computer (a local panel or the mock), so a token is never sent in clear text.
+ *
+ * @param input - The address as typed.
+ * @returns The origin (scheme, host and port), or null when it is empty, not valid, has a user name or password, or
+ *   uses http for another computer.
+ */
 export function normalizeOrigin(input: string): string | null {
   const text = input.trim();
   if (!text) return null;
@@ -120,7 +132,16 @@ export class PanelClient {
     this.actingFor = options.actingFor;
   }
 
-  /** One signed call. `path` starts with /api/v1. Answers the parsed body, or null for 204. */
+  /**
+   * Make one signed call. Redirects are refused, so the signed path is always the one answered.
+   *
+   * @param method - The HTTP method.
+   * @param path - The path with its query, starting with /api/v1.
+   * @param body - The JSON body, or nothing.
+   * @returns The status and the parsed body, or null for 204.
+   * @throws UnreachableError when the panel cannot be reached or does not answer in time.
+   * @throws ApiError when the panel answers with an error status.
+   */
   async request<T>(method: string, path: string, body?: unknown): Promise<{ status: number; body: T | null }> {
     const text = body === undefined ? "" : JSON.stringify(body);
     const headers = await signedHeaders(this.credentials, { method, path, body: text, actingFor: this.actingFor });
@@ -183,7 +204,11 @@ export class PanelClient {
     return answer.body;
   }
 
-  /** Every instance, following the pages of the list. */
+  /**
+   * Read every instance, following the pages of the list (500 per page, at most 10000).
+   *
+   * @returns The instances.
+   */
   async instances(): Promise<Instance[]> {
     const all: Instance[] = [];
     const limit = 500;
@@ -227,7 +252,15 @@ export class PanelClient {
     return { project: answer.data, defaultBranch: typeof defaultBranch === "string" ? defaultBranch : null };
   }
 
-  /** start, pause, restart, update (Get latest code). A production pause needs confirm_production. */
+  /**
+   * Run a quick action: start, pause, restart, update (Get latest code). A production pause needs
+   * confirm_production.
+   *
+   * @param name - The instance's name.
+   * @param action - The action.
+   * @param production - True for a production instance: the confirmation is sent.
+   * @returns The job the panel started.
+   */
   async action(name: string, action: QuickAction, production = false): Promise<Job> {
     const body = production && action === "pause" ? { confirm_production: true } : {};
     return (await this.post<Job>(`/api/v1/instances/${encodeURIComponent(name)}/actions/${action}`, body)).data;
@@ -263,13 +296,25 @@ export class PanelClient {
     return (await this.get<Alert[]>(`/api/v1/alerts?limit=${limit}`)).data;
   }
 
-  /** A development instance of a branch, through its project (the branch's stage, the project's version). */
+  /**
+   * Create a development instance of a branch, through its project (the branch's stage, the project's version).
+   *
+   * @param projectId - The project's id.
+   * @param branch - The branch.
+   * @returns The job that creates it.
+   */
   async createBranchInstance(projectId: string, branch: string): Promise<Job> {
     const path = `/api/v1/projects/${encodeURIComponent(projectId)}/branches/${encodeBranch(branch)}/instances`;
     return (await this.post<Job>(path, {})).data;
   }
 
-  /** The same through POST /instances, for tokens that may not use projects (the instances scope). */
+  /**
+   * Create a development instance through POST /instances, for tokens that may not use projects (the instances
+   * scope). Its modules are installed.
+   *
+   * @param fields - The repository, branch, Odoo version and edition, and the stage.
+   * @returns The job that creates it.
+   */
   async createInstance(fields: {
     repo: string;
     branch: string;
@@ -280,7 +325,11 @@ export class PanelClient {
     return (await this.post<Job>("/api/v1/instances", { ...fields, install_modules: true })).data;
   }
 
-  /** The panel's version, when the token may read it. */
+  /**
+   * Read the panel's version, when the token may read it.
+   *
+   * @returns The server's details.
+   */
   async server(): Promise<{ version?: string }> {
     return (await this.get<{ version?: string }>("/api/v1/server")).data;
   }

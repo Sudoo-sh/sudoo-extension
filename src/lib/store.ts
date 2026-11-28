@@ -69,9 +69,18 @@ async function read<T>(area: chrome.storage.StorageArea, key: string, fallback: 
   return (items[key] as T | undefined) ?? fallback;
 }
 
-/** Read the saved panels. */
+/**
+ * Read the saved panels (local storage; no secrets).
+ *
+ * @returns The panels, or an empty list.
+ */
 export const getPanels = () => read<PanelConfig[]>(local(), "panels", []);
-/** Replace the saved panels. */
+/**
+ * Replace the saved panels in local storage.
+ *
+ * @param panels - The full list of panels.
+ * @returns A promise that settles when they are stored.
+ */
 export const savePanels = (panels: PanelConfig[]) => local().set({ panels });
 
 /**
@@ -174,7 +183,13 @@ export async function setCredentials(panelId: string, credentials: Credentials):
   }
 }
 
-/** Opens the saved secrets with the passphrase; false when it is wrong. */
+/**
+ * Open the saved secrets with the passphrase and keep them, and the vault key, in session memory. A sealed value that
+ * cannot be opened is skipped: that panel asks for its token again.
+ *
+ * @param passphrase - The passphrase.
+ * @returns True when unlocked; false when there is no vault or the passphrase is wrong.
+ */
 export async function unlock(passphrase: string): Promise<boolean> {
   const header = await getHeader();
   if (!header) return false;
@@ -193,7 +208,12 @@ export async function unlock(passphrase: string): Promise<boolean> {
   return true;
 }
 
-/** Switches to "Remember with a passphrase": seals what is in use now. */
+/**
+ * Switch to "Remember with a passphrase": a new vault is made and the credentials in use now are sealed on disk.
+ *
+ * @param passphrase - The new passphrase.
+ * @throws Error when the passphrase is too short (from `createVault`).
+ */
 export async function enablePassphrase(passphrase: string): Promise<void> {
   const { header, key } = await createVault(passphrase);
   const secrets = await getSessionSecrets();
@@ -204,14 +224,19 @@ export async function enablePassphrase(passphrase: string): Promise<void> {
   await saveSettings({ secretMode: "passphrase" });
 }
 
-/** Back to "This browser session only": the sealed copies are deleted from disk. */
+/**
+ * Go back to "This browser session only": the vault and the sealed copies are deleted from disk; the credentials in
+ * memory stay until the browser closes.
+ */
 export async function disablePassphrase(): Promise<void> {
   await local().remove(["vault", "sealed"]);
   await session().remove("vaultKey");
   await saveSettings({ secretMode: "session" });
 }
 
-/** Forgets the vault key and every secret in memory; sealed copies stay on disk until the next unlock. */
+/**
+ * Lock now: forget the vault key and every secret in memory. The sealed copies stay on disk until the next unlock.
+ */
 export async function lockNow(): Promise<void> {
   await session().remove(["vaultKey", "secrets"]);
 }
@@ -257,5 +282,9 @@ export async function setCache<T>(key: string, value: T): Promise<void> {
   await session().set({ [`cache:${key}`]: { at: Date.now(), value } });
 }
 
-/** Make a random id. */
+/**
+ * Make a random id.
+ *
+ * @returns A random UUID.
+ */
 export const newId = (): string => crypto.randomUUID();

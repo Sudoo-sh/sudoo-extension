@@ -134,6 +134,8 @@ stand-ins for the browser's APIs: open `http://localhost:8787/ext/popup/harness.
 `?tab=https://acme-retail-main.demo.sudoo.sh/odoo` for the "This tab" card, `?empty=1` for the first run). The
 harness (`dev/`) is never packaged.
 
+### How this code is organised
+
 | Folder | What |
 | :--- | :--- |
 | `src/lib/` | The API client and signing, matching, storage and the vault, the words (`i18n.ts`) |
@@ -143,6 +145,10 @@ harness (`dev/`) is never packaged.
 | `static/` | The manifest, icons (drawn by `scripts/icons.py`) and the store name and description |
 | `mock/`, `tests/`, `dev/` | The mock panel, the tests and the preview harness |
 | `store/` | The store listing texts (English and Arabic) and the screenshots to make |
+| `scripts/` | The build (`build.mjs`), the reproducible ZIP (`zip.mjs`), the docs check (`check-docs.mjs`) and the icons |
+
+Every file starts with a header comment, and every function, type and field has a `/** ... */` comment; see
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 The design follows the panel's tokens (`web/src/styles/_tokens.scss` of the panel): one plum accent on graphite,
 hairlines, ease-out curves, a 0.97 press, nothing animated when the popup opens (it opens many times a day), reduced

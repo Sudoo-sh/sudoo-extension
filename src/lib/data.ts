@@ -62,7 +62,16 @@ export function problemOf(error: unknown): PanelProblem {
   return "error";
 }
 
-/** The panel's instances and projects; from the cache when it is younger than `maxAgeMs`. */
+/**
+ * Read the panel's instances and projects; from the cache when it is younger than `maxAgeMs`. A fresh copy is
+ * stored in the memory cache.
+ *
+ * @param panel - The saved panel.
+ * @param client - The API client.
+ * @param maxAgeMs - The oldest a cached copy may be, in milliseconds; 0 always asks the panel.
+ * @returns The instances, the projects (null when the token may not list them) and the time they were read.
+ * @throws ApiError or UnreachableError from the client, except a 403 on the projects.
+ */
 export async function loadPanelData(panel: PanelConfig, client: PanelClient, maxAgeMs = 15000): Promise<PanelData> {
   const key = `${panel.id}:data`;
   const cached = maxAgeMs > 0 ? await getCache<PanelData>(key, maxAgeMs) : null;
@@ -79,7 +88,12 @@ export async function loadPanelData(panel: PanelConfig, client: PanelClient, max
   return data;
 }
 
-/** The last data read, however old, to draw the popup at once while a fresh copy loads. */
+/**
+ * Read the last data read, however old, to draw the popup at once while a fresh copy loads.
+ *
+ * @param panel - The saved panel.
+ * @returns The cached data, or null when there is none.
+ */
 export const lastPanelData = (panel: PanelConfig) => getCache<PanelData>(`${panel.id}:data`, Number.POSITIVE_INFINITY);
 
 /**

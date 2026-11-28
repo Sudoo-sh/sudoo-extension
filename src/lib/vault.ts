@@ -120,7 +120,14 @@ export async function seal(key: CryptoKey, text: string): Promise<Sealed> {
   return { iv: toBase64(iv), ct: toBase64(new Uint8Array(ct)) };
 }
 
-/** Throws when the key is wrong or the value was changed (GCM authentication). */
+/**
+ * Open a sealed value.
+ *
+ * @param key - The vault key.
+ * @param sealed - The IV and the cipher text.
+ * @returns The plain text.
+ * @throws DOMException when the key is wrong or the value was changed (GCM authentication).
+ */
 export async function open(key: CryptoKey, sealed: Sealed): Promise<string> {
   const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: fromBase64(sealed.iv) }, key, fromBase64(sealed.ct));
   return decoder.decode(plain);
@@ -143,7 +150,13 @@ export async function createVault(
   return { header: { v: 1, salt: toBase64(salt), iterations, check: await seal(key, CHECK_TEXT) }, key };
 }
 
-/** The key, or null when the passphrase is wrong. */
+/**
+ * Derive the vault key from a passphrase and check it against the header's check value.
+ *
+ * @param header - The stored vault header (salt, iterations, check value).
+ * @param passphrase - The passphrase.
+ * @returns The key, or null when the passphrase is wrong.
+ */
 export async function unlockVault(header: VaultHeader, passphrase: string): Promise<CryptoKey | null> {
   const key = await deriveKey(passphrase, fromBase64(header.salt), header.iterations);
   try {
